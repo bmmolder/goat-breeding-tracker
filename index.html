@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Herd Registry — Goat Breeding Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>🐐 Herd Registry</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -12,47 +14,53 @@
 <header>
   <div>
     <h1>🐐 Herd <span>Registry</span></h1>
-    <div class="header-sub">Aspire Technical Solutions — Goat Breeding Tracker</div>
+    <div class="header-sub" id="todayDate"></div>
   </div>
   <div class="header-meta">
-    <div id="todayDate"></div>
-    <div>Avg gestation: 150 days</div>
+    <div id="statTotal">0</div>
+    <div class="header-meta-label">animals</div>
   </div>
 </header>
 
 <div class="stats-bar">
-  <div class="stat"><div class="stat-num" id="statTotal">0</div><div>Total</div></div>
   <div class="stat"><div class="stat-num" id="statDoes">0</div><div>Does</div></div>
   <div class="stat"><div class="stat-num" id="statBucks">0</div><div>Bucks</div></div>
+  <div class="stat"><div class="stat-num" id="statKids">0</div><div>Kids</div></div>
   <div class="stat"><div class="stat-num" id="statPregnant">0</div><div>Pregnant</div></div>
   <div class="stat"><div class="stat-num" id="statNursing">0</div><div>Nursing</div></div>
-  <div class="stat"><div class="stat-num" id="statKids">0</div><div>Kids</div></div>
 </div>
 
 <div class="main">
+
+  <!-- Due soon alert -->
   <div id="alertCard" class="alert-card">
-    <div class="alert-title">⏰ Due Soon (Next 14 Days)</div>
+    <div class="alert-title">⏰ Due Soon</div>
     <div id="alertList"></div>
   </div>
 
+  <!-- Toolbar -->
   <div class="toolbar">
-    <button class="btn btn-primary" onclick="openAddAnimal()">+ Add Animal</button>
-    <button class="btn btn-secondary" onclick="openAddBreeding()">♦ Record Breeding</button>
-    <div class="filter-tabs">
-      <button class="tab active" onclick="filterAnimals('all', this)">All</button>
-      <button class="tab" onclick="filterAnimals('doe', this)">Does</button>
-      <button class="tab" onclick="filterAnimals('buck', this)">Bucks</button>
-      <button class="tab" onclick="filterAnimals('kid', this)">Kids</button>
-      <button class="tab" onclick="filterAnimals('pregnant', this)">Pregnant</button>
-      <button class="tab" onclick="filterAnimals('nursing', this)">Nursing</button>
-      <button class="tab" onclick="filterAnimals('waiting', this)">Waiting</button>
-    </div>
+    <button class="btn btn-primary" onclick="openAddAnimal()">＋ Add Animal</button>
+    <button class="btn btn-secondary" onclick="openAddBreeding()">♦ Breeding</button>
+  </div>
+
+  <!-- Filter tabs — scrollable on mobile -->
+  <div class="filter-scroll">
+    <button class="tab active" onclick="filterAnimals('all', this)">All</button>
+    <button class="tab" onclick="filterAnimals('doe', this)">Does</button>
+    <button class="tab" onclick="filterAnimals('buck', this)">Bucks</button>
+    <button class="tab" onclick="filterAnimals('kid', this)">Kids</button>
+    <button class="tab" onclick="filterAnimals('pregnant', this)">Pregnant</button>
+    <button class="tab" onclick="filterAnimals('nursing', this)">Nursing</button>
+    <button class="tab" onclick="filterAnimals('waiting', this)">Waiting</button>
   </div>
 
   <div class="goat-grid" id="goatGrid"></div>
 </div>
 
-<!-- Add/Edit Animal Modal -->
+<!-- ═══════════════════════════════════════════════════════════
+     ADD / EDIT ANIMAL MODAL
+════════════════════════════════════════════════════════════ -->
 <div class="modal-overlay hidden" id="goatModal">
   <div class="modal">
     <div class="modal-header">
@@ -62,48 +70,48 @@
     <div class="modal-body">
       <input type="hidden" id="editGoatId">
 
-      <!-- Photo upload -->
+      <!-- Photo -->
       <div class="form-group">
         <label>Photo</label>
         <div class="modal-photo-area" id="modalPhotoArea" onclick="document.getElementById('modalPhotoInput').click()">
-          <div class="upload-hint" id="modalPhotoHint"><span>📷</span>Click to upload photo</div>
+          <div class="upload-hint" id="modalPhotoHint"><span>📷</span>Tap to add photo</div>
           <img id="modalPhotoPreview" src="" style="display:none">
           <button class="photo-remove-btn" id="modalPhotoRemove" style="display:none" onclick="removeModalPhoto(event)">×</button>
         </div>
-        <input type="file" id="modalPhotoInput" class="photo-upload-input" accept="image/*" onchange="handleModalPhoto(event)">
+        <input type="file" id="modalPhotoInput" class="photo-upload-input" accept="image/*" capture="environment" onchange="handleModalPhoto(event)">
       </div>
 
       <div class="form-row">
         <div class="form-group">
-          <label>Name</label>
-          <input type="text" id="goatName" placeholder="e.g. Elvis">
+          <label>Name *</label>
+          <input type="text" id="goatName" placeholder="e.g. Elvis" autocomplete="off">
         </div>
         <div class="form-group">
           <label>Tag / ID</label>
-          <input type="text" id="goatTag" placeholder="e.g. F-07">
+          <input type="text" id="goatTag" placeholder="e.g. F-07" autocomplete="off">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Sex</label>
           <select id="goatSex">
-            <option value="F">Female (Doe)</option>
-            <option value="M">Male (Buck/Wether)</option>
+            <option value="F">♀ Female (Doe)</option>
+            <option value="M">♂ Male (Buck)</option>
           </select>
         </div>
         <div class="form-group">
           <label>Breed</label>
-          <input type="text" id="goatBreed" placeholder="e.g. Nubian, Boer…">
+          <input type="text" id="goatBreed" placeholder="e.g. Nubian" autocomplete="off">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>DOB / Age</label>
+          <label>Date of Birth</label>
           <input type="date" id="goatDOB">
         </div>
         <div class="form-group">
-          <label>Age Label (if DOB unknown)</label>
-          <input type="text" id="goatAge" placeholder="e.g. Over 4, 1 yr, Kid">
+          <label>Age (if DOB unknown)</label>
+          <input type="text" id="goatAge" placeholder="e.g. Over 4, 1 yr">
         </div>
       </div>
       <div class="form-row">
@@ -111,17 +119,19 @@
           <label>Status</label>
           <select id="goatStatus">
             <option value="open">Open</option>
-            <option value="waiting">Waiting (not yet bred)</option>
+            <option value="waiting">Waiting</option>
             <option value="bred">Bred</option>
             <option value="pregnant">Pregnant</option>
             <option value="nursing">Nursing</option>
             <option value="unknown">Unknown</option>
             <option value="dry">Dry / Retired</option>
+            <option value="buck">Buck</option>
+            <option value="kid">Kid</option>
           </select>
         </div>
         <div class="form-group">
           <label>Sire</label>
-          <input type="text" id="goatSire" placeholder="Buck name or tag">
+          <input type="text" id="goatSire" placeholder="Buck name" autocomplete="off">
         </div>
       </div>
       <div class="form-row">
@@ -135,12 +145,12 @@
         </div>
       </div>
 
-      <!-- Kids section -->
-      <div class="form-group" id="kidsSection">
+      <!-- Kids -->
+      <div class="form-group">
         <label>Kids</label>
         <div class="kids-adder">
           <div id="kidsList"></div>
-          <button class="btn btn-outline btn-sm" onclick="addKidRow()">+ Add Kid</button>
+          <button class="btn btn-outline btn-sm" onclick="addKidRow()">＋ Add Kid</button>
         </div>
       </div>
 
@@ -156,7 +166,9 @@
   </div>
 </div>
 
-<!-- Record Breeding Modal -->
+<!-- ═══════════════════════════════════════════════════════════
+     RECORD BREEDING MODAL
+════════════════════════════════════════════════════════════ -->
 <div class="modal-overlay hidden" id="breedingModal">
   <div class="modal">
     <div class="modal-header">
@@ -165,16 +177,16 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label>Select Doe</label>
+        <label>Doe</label>
         <select id="breedDoe"></select>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Buck / Sire</label>
-          <input type="text" id="breedSire" placeholder="Buck name or tag">
+          <input type="text" id="breedSire" placeholder="Buck name">
         </div>
         <div class="form-group">
-          <label>Fertilization Date</label>
+          <label>Date</label>
           <input type="date" id="breedDate">
         </div>
       </div>
@@ -191,12 +203,112 @@
         <textarea id="breedNotes" rows="2" placeholder="Observations…"></textarea>
       </div>
       <div class="est-due-box">
-        Estimated due date (150 days): <strong id="estDueDisplay">—</strong>
+        Est. due date (150 days): <strong id="estDueDisplay">—</strong>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('breedingModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveBreeding()">Save Breeding</button>
+      <button class="btn btn-primary" onclick="saveBreeding()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     WEIGHT LOG MODAL
+════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="weightModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚖️ Weight Log — <span id="weightModalName"></span></div>
+      <button class="modal-close" onclick="closeModal('weightModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="weightAnimalId">
+
+      <!-- Add new entry -->
+      <div class="log-add-row">
+        <div class="form-group" style="flex:1">
+          <label>Date</label>
+          <input type="date" id="weightDate">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Weight (lbs)</label>
+          <input type="number" id="weightValue" placeholder="0.0" step="0.1" min="0">
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>Notes</label>
+          <input type="text" id="weightNote" placeholder="Optional">
+        </div>
+        <button class="btn btn-primary btn-sm log-add-btn" onclick="saveWeightEntry()">Add</button>
+      </div>
+
+      <!-- Weight history -->
+      <div class="log-table-wrap">
+        <table class="log-table" id="weightTable">
+          <thead>
+            <tr><th>Date</th><th>Weight</th><th>Notes</th><th></th></tr>
+          </thead>
+          <tbody id="weightTableBody"></tbody>
+        </table>
+        <div class="log-empty hidden" id="weightEmpty">No weight entries yet.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('weightModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     VET / TREATMENT LOG MODAL
+════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="vetModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🩺 Vet Log — <span id="vetModalName"></span></div>
+      <button class="modal-close" onclick="closeModal('vetModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="vetAnimalId">
+
+      <!-- Add new entry -->
+      <div class="log-add-row">
+        <div class="form-group" style="flex:1">
+          <label>Date</label>
+          <input type="date" id="vetDate">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Type</label>
+          <select id="vetType">
+            <option value="Vaccine">Vaccine</option>
+            <option value="Medication">Medication</option>
+            <option value="Dewormer">Dewormer</option>
+            <option value="Hoof Trim">Hoof Trim</option>
+            <option value="Vet Visit">Vet Visit</option>
+            <option value="Injury">Injury</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>Treatment / Notes</label>
+          <input type="text" id="vetTreatment" placeholder="e.g. CDT vaccine, 2ml">
+        </div>
+        <button class="btn btn-primary btn-sm log-add-btn" onclick="saveVetEntry()">Add</button>
+      </div>
+
+      <!-- Vet history -->
+      <div class="log-table-wrap">
+        <table class="log-table" id="vetTable">
+          <thead>
+            <tr><th>Date</th><th>Type</th><th>Treatment</th><th></th></tr>
+          </thead>
+          <tbody id="vetTableBody"></tbody>
+        </table>
+        <div class="log-empty hidden" id="vetEmpty">No vet records yet.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('vetModal')">Close</button>
     </div>
   </div>
 </div>
