@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Herd Registry — Goat Breeding Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🐐 Herd <span>Registry</span></h1>
+    <div class="header-sub">Aspire Technical Solutions — Goat Breeding Tracker</div>
+  </div>
+  <div class="header-meta">
+    <div id="todayDate"></div>
+    <div>Avg gestation: 150 days</div>
+  </div>
+</header>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-num" id="statTotal">0</div><div>Total</div></div>
+  <div class="stat"><div class="stat-num" id="statDoes">0</div><div>Does</div></div>
+  <div class="stat"><div class="stat-num" id="statBucks">0</div><div>Bucks</div></div>
+  <div class="stat"><div class="stat-num" id="statPregnant">0</div><div>Pregnant</div></div>
+  <div class="stat"><div class="stat-num" id="statNursing">0</div><div>Nursing</div></div>
+  <div class="stat"><div class="stat-num" id="statKids">0</div><div>Kids</div></div>
+</div>
+
+<div class="main">
+  <div id="alertCard" class="alert-card">
+    <div class="alert-title">⏰ Due Soon (Next 14 Days)</div>
+    <div id="alertList"></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openAddAnimal()">+ Add Animal</button>
+    <button class="btn btn-secondary" onclick="openAddBreeding()">♦ Record Breeding</button>
+    <div class="filter-tabs">
+      <button class="tab active" onclick="filterAnimals('all', this)">All</button>
+      <button class="tab" onclick="filterAnimals('doe', this)">Does</button>
+      <button class="tab" onclick="filterAnimals('buck', this)">Bucks</button>
+      <button class="tab" onclick="filterAnimals('kid', this)">Kids</button>
+      <button class="tab" onclick="filterAnimals('pregnant', this)">Pregnant</button>
+      <button class="tab" onclick="filterAnimals('nursing', this)">Nursing</button>
+      <button class="tab" onclick="filterAnimals('waiting', this)">Waiting</button>
+    </div>
+  </div>
+
+  <div class="goat-grid" id="goatGrid"></div>
+</div>
+
+<!-- Add/Edit Animal Modal -->
+<div class="modal-overlay hidden" id="goatModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="goatModalTitle">Add Animal</div>
+      <button class="modal-close" onclick="closeModal('goatModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editGoatId">
+
+      <!-- Photo upload -->
+      <div class="form-group">
+        <label>Photo</label>
+        <div class="modal-photo-area" id="modalPhotoArea" onclick="document.getElementById('modalPhotoInput').click()">
+          <div class="upload-hint" id="modalPhotoHint"><span>📷</span>Click to upload photo</div>
+          <img id="modalPhotoPreview" src="" style="display:none">
+          <button class="photo-remove-btn" id="modalPhotoRemove" style="display:none" onclick="removeModalPhoto(event)">×</button>
+        </div>
+        <input type="file" id="modalPhotoInput" class="photo-upload-input" accept="image/*" onchange="handleModalPhoto(event)">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="goatName" placeholder="e.g. Elvis">
+        </div>
+        <div class="form-group">
+          <label>Tag / ID</label>
+          <input type="text" id="goatTag" placeholder="e.g. F-07">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Sex</label>
+          <select id="goatSex">
+            <option value="F">Female (Doe)</option>
+            <option value="M">Male (Buck/Wether)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Breed</label>
+          <input type="text" id="goatBreed" placeholder="e.g. Nubian, Boer…">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>DOB / Age</label>
+          <input type="date" id="goatDOB">
+        </div>
+        <div class="form-group">
+          <label>Age Label (if DOB unknown)</label>
+          <input type="text" id="goatAge" placeholder="e.g. Over 4, 1 yr, Kid">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Status</label>
+          <select id="goatStatus">
+            <option value="open">Open</option>
+            <option value="waiting">Waiting (not yet bred)</option>
+            <option value="bred">Bred</option>
+            <option value="pregnant">Pregnant</option>
+            <option value="nursing">Nursing</option>
+            <option value="unknown">Unknown</option>
+            <option value="dry">Dry / Retired</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sire</label>
+          <input type="text" id="goatSire" placeholder="Buck name or tag">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fertilization Date</label>
+          <input type="date" id="goatBreedDate">
+        </div>
+        <div class="form-group">
+          <label>Due / Delivery Date</label>
+          <input type="date" id="goatDueDate">
+        </div>
+      </div>
+
+      <!-- Kids section -->
+      <div class="form-group" id="kidsSection">
+        <label>Kids</label>
+        <div class="kids-adder">
+          <div id="kidsList"></div>
+          <button class="btn btn-outline btn-sm" onclick="addKidRow()">+ Add Kid</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="goatNotes" rows="2" placeholder="Health notes, temperament…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('goatModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGoat()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record Breeding Modal -->
+<div class="modal-overlay hidden" id="breedingModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Record Breeding</div>
+      <button class="modal-close" onclick="closeModal('breedingModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Select Doe</label>
+        <select id="breedDoe"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Buck / Sire</label>
+          <input type="text" id="breedSire" placeholder="Buck name or tag">
+        </div>
+        <div class="form-group">
+          <label>Fertilization Date</label>
+          <input type="date" id="breedDate">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Method</label>
+        <select id="breedMethod">
+          <option value="Natural">Natural</option>
+          <option value="AI">Artificial Insemination</option>
+          <option value="Hand Breed">Hand Breed</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="breedNotes" rows="2" placeholder="Observations…"></textarea>
+      </div>
+      <div class="est-due-box">
+        Estimated due date (150 days): <strong id="estDueDisplay">—</strong>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('breedingModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBreeding()">Save Breeding</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
