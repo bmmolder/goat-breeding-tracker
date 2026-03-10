@@ -158,7 +158,8 @@ function updateStats() {
 // ── Render ────────────────────────────────────────────────────────────────────
 function render() {
   updateStats();
-  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-US', {
+  const dateEl = document.getElementById('todayDate');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
   });
 

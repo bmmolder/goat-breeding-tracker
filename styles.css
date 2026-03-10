@@ -1,19 +1,19 @@
 /* ── Variables ───────────────────────────────────────────────────────────── */
 :root {
-  --cream: #F5F0E8;
-  --parchment: #EDE5D0;
-  --brown-dark: #3D2B1F;
-  --brown-mid: #7A5C45;
-  --brown-light: #B89070;
-  --sage: #6B7C5E;
-  --sage-light: #A8B89A;
-  --rust: #C4622D;
-  --rust-light: #E8905A;
-  --gold: #C9A84C;
-  --text: #2A1F17;
-  --text-muted: #6B5744;
+  --cream: #F4F7F2;
+  --parchment: #E3EBE0;
+  --brown-dark: #1C3A1E;   /* deep forest green — primary brand */
+  --brown-mid: #2E6B32;    /* mid green */
+  --brown-light: #7AAB7D;  /* light sage green */
+  --sage: #4A7C59;         /* accent green */
+  --sage-light: #A8C9A8;
+  --rust: #B85C2A;         /* warm accent — kept for alerts/actions */
+  --rust-light: #D4804E;
+  --gold: #5A9E3C;         /* logo green used as highlight accent */
+  --text: #1A2E1B;
+  --text-muted: #4A6B4C;
   --radius: 8px;
-  --touch-min: 44px; /* Apple/Google min touch target */
+  --touch-min: 44px;
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
@@ -34,7 +34,7 @@ body {
 header {
   background: var(--brown-dark);
   color: var(--cream);
-  padding: 16px 20px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -44,26 +44,50 @@ header {
   z-index: 50;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: white;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.header-titles {
+  display: flex;
+  flex-direction: column;
+}
+
 header h1 {
   font-family: 'Playfair Display', serif;
-  font-size: 22px;
-  letter-spacing: 0.02em;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  color: #ffffff;
   line-height: 1.2;
+  text-transform: uppercase;
 }
-header h1 span { color: var(--gold); }
 
 .header-sub {
-  font-size: 10px;
-  color: var(--brown-light);
-  margin-top: 2px;
+  font-size: 11px;
+  color: var(--sage-light);
+  margin-top: 1px;
   font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .header-meta {
   text-align: right;
   font-family: 'Playfair Display', serif;
   font-size: 28px;
-  color: var(--gold);
+  color: var(--sage-light);
   line-height: 1;
 }
 .header-meta-label {
@@ -71,6 +95,8 @@ header h1 span { color: var(--gold); }
   font-size: 10px;
   color: var(--brown-light);
   text-align: right;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* ── Stats Bar ───────────────────────────────────────────────────────────── */
@@ -89,7 +115,7 @@ header h1 span { color: var(--gold); }
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: var(--cream);
+  color: #E8F5E8;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   text-transform: uppercase;
@@ -102,7 +128,7 @@ header h1 span { color: var(--gold); }
 .stat-num {
   font-size: 20px;
   font-weight: 500;
-  color: var(--gold);
+  color: #A8E6A8;
   font-family: 'Playfair Display', serif;
   line-height: 1;
 }
@@ -162,11 +188,11 @@ header h1 span { color: var(--gold); }
   -webkit-tap-highlight-color: transparent;
 }
 
-.btn-primary { background: var(--rust); color: white; flex: 1; }
-.btn-primary:active { background: var(--rust-light); }
+.btn-primary { background: var(--brown-mid); color: white; flex: 1; }
+.btn-primary:active { background: var(--sage); }
 
 .btn-secondary { background: var(--sage); color: white; flex: 1; }
-.btn-secondary:active { background: var(--sage-light); }
+.btn-secondary:active { background: var(--brown-mid); }
 
 .btn-outline {
   background: transparent;
@@ -466,8 +492,7 @@ header h1 span { color: var(--gold); }
   max-height: 92vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  border-top: 4px solid var(--gold);
-  /* Safe area for iPhone notch */
+  border-top: 4px solid var(--brown-mid);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -706,8 +731,9 @@ input:focus, select:focus, textarea:focus {
 
 /* ── Desktop overrides ───────────────────────────────────────────────────── */
 @media (min-width: 768px) {
-  header { padding: 20px 40px; }
-  header h1 { font-size: 26px; }
+  header { padding: 12px 40px; }
+  header h1 { font-size: 24px; }
+  .header-logo { width: 62px; height: 62px; }
   .stats-bar { padding: 12px 40px; gap: 0; }
   .main { padding: 24px 40px; }
   .toolbar .btn { flex: none; }
