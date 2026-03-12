@@ -35,6 +35,9 @@
 
 <div class="main">
 
+  <!-- Auth status -->
+  <div id="authStatus" class="auth-status locked" onclick="window.toggleAuth && window.toggleAuth()">🔒 Read Only — tap to unlock</div>
+
   <!-- Sync status banner -->
   <div id="syncBanner" class="sync-banner hidden"></div>
 
@@ -45,10 +48,10 @@
   </div>
 
   <!-- Toolbar -->
-  <div class="toolbar">
-    <button class="btn btn-primary" onclick="openAddAnimal()">＋ Add Animal</button>
-    <button class="btn btn-secondary" onclick="openAddBreeding()">♦ Breeding</button>
-    <button class="btn btn-outline" onclick="openRecycleBin()">🗑️ Bin</button>
+  <div class="toolbar" id="toolbar">
+    <button class="btn btn-primary edit-only" onclick="openAddAnimal()">＋ Add Animal</button>
+    <button class="btn btn-secondary edit-only" onclick="openAddBreeding()">♦ Breeding</button>
+    <button class="btn btn-outline edit-only" onclick="openRecycleBin()">🗑️ Bin</button>
   </div>
 
   <!-- Filter tabs -->

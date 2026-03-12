@@ -25,7 +25,9 @@ const DELETED = collection(db, "deleted_animals");
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let animals      = [];
+let isUnlocked   = sessionStorage.getItem('ror_auth') === 'true';
 let filterStatus = 'all';
+let isUnlocked   = false;  // read-only by default
 let tempKids     = [];
 let tempPhotoB64 = null;   // base64 string (preview + save)
 let tempPhotoNew = false;  // flag: user picked a new photo this session
@@ -39,6 +41,20 @@ function showBanner(msg, type = 'info') {
   if (type !== 'error') setTimeout(() => b.classList.add('hidden'), 3000);
 }
 
+// ── Auth Gate ────────────────────────────────────────────────────────────────
+function requireAuth(callback) {
+  if (isUnlocked) { callback(); return; }
+  const pwd = prompt('🔒 Enter password to make changes:');
+  if (pwd === 'Wagyu') {
+    isUnlocked = true;
+    sessionStorage.setItem('ror_auth', 'true');
+    showBanner('🔓 Unlocked — you can now make changes', 'success');
+    callback();
+  } else if (pwd !== null) {
+    showBanner('❌ Incorrect password', 'error');
+  }
+}
+
 // ── Real-time Listener ────────────────────────────────────────────────────────
 function startListener() {
   onSnapshot(ANIMALS, snap => {
@@ -50,6 +66,7 @@ function startListener() {
       return (a.name || '').localeCompare(b.name || '');
     });
     render();
+    setAuthUI();
   }, err => {
     showBanner('⚠️ Connection issue — check your internet', 'error');
     console.error(err);
@@ -163,10 +180,10 @@ function buildCard(a) {
     </div>
 
     <div class="card-actions">
-      <button class="btn btn-outline btn-sm" onclick="editAnimal('${a.firestoreId}')">✏️ Edit</button>
-      <button class="btn btn-outline btn-sm" onclick="openWeightModal('${a.firestoreId}')">⚖️ Weight</button>
-      <button class="btn btn-outline btn-sm" onclick="openVetModal('${a.firestoreId}')">🩺 Vet</button>
-      <button class="btn btn-outline btn-sm btn-danger" onclick="deleteAnimal('${a.firestoreId}','${a.name}')">🗑️</button>
+      <button class="btn btn-outline btn-sm edit-only" onclick="editAnimal('${a.firestoreId}')">✏️ Edit</button>
+      <button class="btn btn-outline btn-sm edit-only" onclick="openWeightModal('${a.firestoreId}')">⚖️ Weight</button>
+      <button class="btn btn-outline btn-sm edit-only" onclick="openVetModal('${a.firestoreId}')">🩺 Vet</button>
+      <button class="btn btn-outline btn-sm btn-danger edit-only" onclick="deleteAnimal('${a.firestoreId}','${a.name}')">🗑️</button>
     </div>
   </div>`;
 }
@@ -238,7 +255,7 @@ function setModalPhoto(b64) {
 
 // Direct card photo tap — compress and save immediately
 function triggerCardPhoto(firestoreId) {
-  document.getElementById('cardPhoto_' + firestoreId).click();
+  requireAuth(() => document.getElementById('cardPhoto_' + firestoreId).click());
 }
 
 function handleCardPhoto(event, firestoreId) {
@@ -258,6 +275,9 @@ function handleCardPhoto(event, firestoreId) {
 
 // ── Add / Edit Animal ─────────────────────────────────────────────────────────
 function openAddAnimal() {
+  requireAuth(() => _openAddAnimal());
+}
+function _openAddAnimal() {
   document.getElementById('goatModalTitle').textContent = 'Add Animal';
   document.getElementById('editGoatId').value = '';
   ['goatName','goatTag','goatBreed','goatAge','goatSire','goatNotes','goatBreedDate','goatDueDate']
@@ -272,6 +292,9 @@ function openAddAnimal() {
 }
 
 function editAnimal(firestoreId) {
+  requireAuth(() => _editAnimal(firestoreId));
+}
+function _editAnimal(firestoreId) {
   const a = animals.find(x => x.firestoreId === firestoreId);
   if (!a) return;
   document.getElementById('goatModalTitle').textContent   = 'Edit — ' + a.name;
@@ -342,6 +365,9 @@ async function saveGoat() {
 }
 
 async function deleteAnimal(firestoreId, name) {
+  requireAuth(() => _deleteAnimal(firestoreId, name));
+}
+async function _deleteAnimal(firestoreId, name) {
   if (!confirm(`Move ${name} to the Recycle Bin?`)) return;
   try {
     const a = animals.find(x => x.firestoreId === firestoreId);
@@ -434,6 +460,9 @@ function removeKid(i) { tempKids.splice(i,1); renderKidsList(); }
 
 // ── Breeding ──────────────────────────────────────────────────────────────────
 function openAddBreeding() {
+  requireAuth(() => _openAddBreeding());
+}
+function _openAddBreeding() {
   const does = animals.filter(a => a.sex==='F' && a.status!=='kid');
   document.getElementById('breedDoe').innerHTML = does.map(a=>`<option value="${a.firestoreId}">${a.name}</option>`).join('');
   document.getElementById('breedSire').value    = 'Elvis';
@@ -469,6 +498,9 @@ async function saveBreeding() {
 
 // ── Weight Log ────────────────────────────────────────────────────────────────
 function openWeightModal(firestoreId) {
+  requireAuth(() => _openWeightModal(firestoreId));
+}
+function _openWeightModal(firestoreId) {
   const a = animals.find(x => x.firestoreId===firestoreId);
   if (!a) return;
   document.getElementById('weightAnimalId').value        = firestoreId;
@@ -520,6 +552,9 @@ async function deleteWeightEntry(firestoreId, sortedIdx) {
 
 // ── Vet Log ───────────────────────────────────────────────────────────────────
 function openVetModal(firestoreId) {
+  requireAuth(() => _openVetModal(firestoreId));
+}
+function _openVetModal(firestoreId) {
   const a = animals.find(x=>x.firestoreId===firestoreId);
   if (!a) return;
   document.getElementById('vetAnimalId').value        = firestoreId;
@@ -569,6 +604,41 @@ async function deleteVetEntry(firestoreId, sortedIdx) {
   await setDoc(doc(db,'animals',firestoreId),{vet,updatedAt:serverTimestamp()},{merge:true});
 }
 
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const PASSWORD = 'Wagyu';
+
+function setAuthUI() {
+  const status  = document.getElementById('authStatus');
+  const toolbar = document.getElementById('toolbar');
+  if (isUnlocked) {
+    status.textContent = '🔓 Edit Mode — tap to lock';
+    status.className   = 'auth-status unlocked';
+    document.querySelectorAll('.edit-only').forEach(el => el.style.display = '');
+  } else {
+    status.textContent = '🔒 Read Only — tap to unlock';
+    status.className   = 'auth-status locked';
+    document.querySelectorAll('.edit-only').forEach(el => el.style.display = 'none');
+  }
+}
+
+function toggleAuth() {
+  if (isUnlocked) {
+    isUnlocked = false;
+    setAuthUI();
+    showBanner('🔒 Locked — read only', 'info');
+  } else {
+    const pw = prompt('Enter password to enable editing:');
+    if (pw === PASSWORD) {
+      isUnlocked = true;
+      setAuthUI();
+      showBanner('🔓 Edit mode unlocked', 'success');
+    } else if (pw !== null) {
+      showBanner('❌ Incorrect password', 'error');
+    }
+  }
+}
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -585,6 +655,7 @@ window.openAddBreeding  = openAddBreeding;
 window.saveBreeding     = saveBreeding;
 window.updateEstDue     = updateEstDue;
 window.closeModal       = closeModal;
+window.toggleAuth       = toggleAuth;
 window.addKidRow        = addKidRow;
 window.removeKid        = removeKid;
 window.handleModalPhoto = handleModalPhoto;
