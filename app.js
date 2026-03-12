@@ -597,7 +597,6 @@ window.filterAnimals    = filterAnimals;
 window.openAddAnimal    = openAddAnimal;
 window.editAnimal       = editAnimal;
 window.saveGoat         = saveGoat;
-window.deleteAnimal     = deleteAnimal;
 window.openAddBreeding  = openAddBreeding;
 window.saveBreeding     = saveBreeding;
 window.updateEstDue     = updateEstDue;
