@@ -48,6 +48,7 @@
   <div class="toolbar">
     <button class="btn btn-primary" onclick="openAddAnimal()">＋ Add Animal</button>
     <button class="btn btn-secondary" onclick="openAddBreeding()">♦ Breeding</button>
+    <button class="btn btn-outline" onclick="openRecycleBin()">🗑️ Bin</button>
   </div>
 
   <!-- Filter tabs -->
@@ -267,6 +268,21 @@
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('vetModal')">Close</button></div>
+  </div>
+</div>
+
+<!-- ═══ RECYCLE BIN MODAL ═══ -->
+<div class="modal-overlay hidden" id="recycleBinModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🗑️ Recycle Bin</div>
+      <button class="modal-close" onclick="closeModal('recycleBinModal')">×</button>
+    </div>
+    <div class="modal-body" id="recycleBinList" style="padding:0">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('recycleBinModal')">Close</button>
+    </div>
   </div>
 </div>
 

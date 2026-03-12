@@ -20,7 +20,8 @@ const firebaseConfig = {
 
 const app     = initializeApp(firebaseConfig);
 const db      = getFirestore(app);
-const ANIMALS = collection(db, 'animals');
+const ANIMALS = collection(db, "animals");
+const DELETED = collection(db, "deleted_animals");
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let animals      = [];
@@ -341,10 +342,75 @@ async function saveGoat() {
 }
 
 async function deleteAnimal(firestoreId, name) {
-  if (!confirm(`Remove ${name} from the registry?`)) return;
+  if (!confirm(`Move ${name} to the Recycle Bin?`)) return;
   try {
+    const a = animals.find(x => x.firestoreId === firestoreId);
+    if (!a) return;
+    const { firestoreId: _, ...data } = a;
+    await setDoc(doc(db, 'deleted_animals', firestoreId), {
+      ...data,
+      originalId: firestoreId,
+      deletedAt: serverTimestamp()
+    });
     await deleteDoc(doc(db, 'animals', firestoreId));
-    showBanner(`🗑️ ${name} removed`, 'info');
+    showBanner(`🗑️ ${name} moved to Recycle Bin`, 'info');
+  } catch(err) {
+    showBanner('❌ Delete failed', 'error');
+  }
+}
+
+// ── Recycle Bin ───────────────────────────────────────────────────────────────
+async function openRecycleBin() {
+  const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+  const snap = await getDocs(DELETED);
+  const deleted = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const modal = document.getElementById('recycleBinModal');
+  const list  = document.getElementById('recycleBinList');
+
+  if (!deleted.length) {
+    list.innerHTML = '<div class="log-empty" style="display:block;padding:20px;text-align:center;color:var(--oak)">Recycle Bin is empty.</div>';
+  } else {
+    deleted.sort((a,b) => {
+      const ta = a.deletedAt?.seconds || 0;
+      const tb = b.deletedAt?.seconds || 0;
+      return tb - ta;
+    });
+    list.innerHTML = deleted.map(a => `
+      <div class="recycle-item">
+        <div class="recycle-info">
+          <div class="recycle-name">${a.name}</div>
+          <div class="recycle-meta">${a.sex==='F'?'♀ Doe':'♂ Buck'} · ${a.status} · Deleted ${a.deletedAt ? new Date(a.deletedAt.seconds*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="restoreAnimal('${a.id}','${a.name}')">↩ Restore</button>
+        <button class="btn btn-outline btn-sm btn-danger" onclick="permanentDelete('${a.id}','${a.name}')">✕ Delete Forever</button>
+      </div>`).join('');
+  }
+  modal.classList.remove('hidden');
+}
+
+async function restoreAnimal(deletedId, name) {
+  try {
+    const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const snap = await getDoc(doc(db, 'deleted_animals', deletedId));
+    if (!snap.exists()) return;
+    const { deletedAt, originalId, ...data } = snap.data();
+    data.updatedAt = serverTimestamp();
+    await setDoc(doc(db, 'animals', deletedId), data);
+    await deleteDoc(doc(db, 'deleted_animals', deletedId));
+    showBanner(`✅ ${name} restored!`, 'success');
+    openRecycleBin(); // refresh the bin view
+  } catch(err) {
+    showBanner('❌ Restore failed', 'error');
+    console.error(err);
+  }
+}
+
+async function permanentDelete(deletedId, name) {
+  if (!confirm(`Permanently delete ${name}? This cannot be undone.`)) return;
+  try {
+    await deleteDoc(doc(db, 'deleted_animals', deletedId));
+    showBanner(`🗑️ ${name} permanently deleted`, 'info');
+    openRecycleBin();
   } catch(err) {
     showBanner('❌ Delete failed', 'error');
   }
@@ -512,6 +578,9 @@ window.openAddAnimal    = openAddAnimal;
 window.editAnimal       = editAnimal;
 window.saveGoat         = saveGoat;
 window.deleteAnimal     = deleteAnimal;
+window.openRecycleBin   = openRecycleBin;
+window.restoreAnimal    = restoreAnimal;
+window.permanentDelete  = permanentDelete;
 window.openAddBreeding  = openAddBreeding;
 window.saveBreeding     = saveBreeding;
 window.updateEstDue     = updateEstDue;
