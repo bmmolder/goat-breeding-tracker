@@ -1,128 +1,78 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Herd Registry — app.js
+// Red Oak Ranch — Herd Registry
+// Firestore only (no Storage) — photos stored as compressed base64 in Firestore
 // ─────────────────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'goat_herd_v3';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc,
+  onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// ── Seed Data ─────────────────────────────────────────────────────────────────
-function seedData() {
-  return [
-    // ── Buck ──────────────────────────────────────────────────────────────
-    { id: 1,  name: 'Elvis',       sex: 'M', age: 'Over 4', dob: '',           breed: '', status: 'buck',     sire: '',        breedDate: '',           dueDate: '',           kids: [], notes: '',            photo: null, weights: [], vet: [] },
+const firebaseConfig = {
+  apiKey: "AIzaSyCfILf3nZVR5SuUlpzAcmyG-Ty2maDEz38",
+  authDomain: "red-oak-ranch.firebaseapp.com",
+  projectId: "red-oak-ranch",
+  storageBucket: "red-oak-ranch.firebasestorage.app",
+  messagingSenderId: "676841101704",
+  appId: "1:676841101704:web:b488510e055dab91c0423d"
+};
 
-    // ── Pregnant ──────────────────────────────────────────────────────────
-    { id: 2,  name: 'Snowy Ears',  sex: 'F', age: 'Over 4', dob: '',           breed: '', status: 'pregnant', sire: 'Unknown', breedDate: '2025-10-15', dueDate: '2026-03-15', kids: [], notes: '',            photo: null, weights: [], vet: [] },
-
-    // ── Nursing ───────────────────────────────────────────────────────────
-    { id: 3,  name: 'Cocoa',       sex: 'F', age: 'Over 4', dob: '',           breed: '', status: 'nursing',  sire: 'Unknown', breedDate: '2025-10-01', dueDate: '2026-03-01',
-      kids: [
-        { name: 'Buddy',   sex: 'M', dob: '2026-03-01', weight: '' },
-        { name: 'CC',      sex: 'F', dob: '2026-03-01', weight: '' },
-        { name: 'Belt',    sex: 'F', dob: '2026-03-01', weight: '' },
-      ], notes: '', photo: null, weights: [], vet: [] },
-
-    { id: 4,  name: 'Sock',        sex: 'F', age: 'Unknown', dob: '',          breed: '', status: 'nursing',  sire: 'Unknown', breedDate: '2025-10-08', dueDate: '2026-02-28',
-      kids: [
-        { name: 'Drop', sex: 'F', dob: '2026-02-28', weight: '' },
-      ], notes: '', photo: null, weights: [], vet: [] },
-
-    { id: 5,  name: 'Mocha',       sex: 'F', age: 'Over 4', dob: '',           breed: '', status: 'nursing',  sire: 'Unknown', breedDate: '2025-09-25', dueDate: '2026-02-20',
-      kids: [
-        { name: 'Brownie', sex: 'F', dob: '2026-02-20', weight: '' },
-        { name: 'Patches', sex: 'M', dob: '2026-02-20', weight: '' },
-        { name: 'Taco',    sex: 'M', dob: '2026-02-20', weight: '' },
-      ], notes: '', photo: null, weights: [], vet: [] },
-
-    { id: 6,  name: 'Mooey',       sex: 'F', age: 'Over 4', dob: '',           breed: '', status: 'nursing',  sire: 'Unknown', breedDate: '2025-10-06', dueDate: '2026-02-28',
-      kids: [
-        { name: 'Mosie', sex: 'F', dob: '2026-02-28', weight: '' },
-        { name: 'Dot',   sex: 'F', dob: '2026-02-28', weight: '' },
-      ], notes: '', photo: null, weights: [], vet: [] },
-
-    { id: 7,  name: 'Willow',      sex: 'F', age: 'Over 4', dob: '',           breed: '', status: 'nursing',  sire: 'Unknown', breedDate: '',           dueDate: '2026-03-06',
-      kids: [
-        { name: 'Petunia', sex: 'F', dob: '2026-03-06', weight: '' },
-      ], notes: '', photo: null, weights: [], vet: [] },
-
-    // ── Unknown ───────────────────────────────────────────────────────────
-    { id: 8,  name: 'Gene',        sex: 'F', age: 'Over 4',  dob: '',          breed: '', status: 'unknown',  sire: 'Unknown', breedDate: '', dueDate: '', kids: [], notes: '', photo: null, weights: [], vet: [] },
-    { id: 9,  name: 'Nine Lives',  sex: 'F', age: 'Unknown', dob: '',          breed: '', status: 'unknown',  sire: 'Unknown', breedDate: '', dueDate: '', kids: [], notes: '', photo: null, weights: [], vet: [] },
-
-    // ── Waiting (yearlings) ───────────────────────────────────────────────
-    { id: 10, name: 'Ruthie',      sex: 'F', age: '1 yr',   dob: '2025-03-01', breed: '', status: 'waiting',  sire: 'Unknown', breedDate: '', dueDate: '', kids: [], notes: '', photo: null, weights: [], vet: [] },
-    { id: 11, name: 'Capie',       sex: 'F', age: '1 yr',   dob: '2025-03-01', breed: '', status: 'waiting',  sire: 'Unknown', breedDate: '', dueDate: '', kids: [], notes: '', photo: null, weights: [], vet: [] },
-    { id: 12, name: 'Charlamagne', sex: 'F', age: '1 yr',   dob: '2025-03-01', breed: '', status: 'waiting',  sire: 'Unknown', breedDate: '', dueDate: '', kids: [], notes: '', photo: null, weights: [], vet: [] },
-    { id: 13, name: 'Wisp',        sex: 'F', age: '1 yr',   dob: '2025-03-01', breed: '', status: 'waiting',  sire: 'Unknown', breedDate: '', dueDate: '', kids: [], notes: '', photo: null, weights: [], vet: [] },
-    { id: 14, name: 'Betty Boop',  sex: 'F', age: '1 yr',   dob: '2025-03-01', breed: '', status: 'waiting',  sire: 'Elvis',   breedDate: '', dueDate: '', kids: [], notes: '', photo: null, weights: [], vet: [] },
-
-    // ── Kids ──────────────────────────────────────────────────────────────
-    { id: 15, name: 'Buddy',       sex: 'M', age: 'Kid', dob: '2026-03-01', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Cocoa',  photo: null, weights: [], vet: [] },
-    { id: 16, name: 'CC',          sex: 'F', age: 'Kid', dob: '2026-03-01', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Cocoa',  photo: null, weights: [], vet: [] },
-    { id: 17, name: 'Belt',        sex: 'F', age: 'Kid', dob: '2026-03-01', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Cocoa',  photo: null, weights: [], vet: [] },
-    { id: 18, name: 'Drop',        sex: 'F', age: 'Kid', dob: '2026-02-28', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Sock',   photo: null, weights: [], vet: [] },
-    { id: 19, name: 'Brownie',     sex: 'F', age: 'Kid', dob: '2026-02-20', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Mocha',  photo: null, weights: [], vet: [] },
-    { id: 20, name: 'Patches',     sex: 'M', age: 'Kid', dob: '2026-02-20', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Mocha',  photo: null, weights: [], vet: [] },
-    { id: 21, name: 'Taco',        sex: 'M', age: 'Kid', dob: '2026-02-20', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Mocha',  photo: null, weights: [], vet: [] },
-    { id: 22, name: 'Mosie',       sex: 'F', age: 'Kid', dob: '2026-02-28', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Mooey',  photo: null, weights: [], vet: [] },
-    { id: 23, name: 'Dot',         sex: 'F', age: 'Kid', dob: '2026-02-28', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Mooey',  photo: null, weights: [], vet: [] },
-    { id: 24, name: 'Petunia',     sex: 'F', age: 'Kid', dob: '2026-03-06', breed: '', status: 'kid', sire: 'Elvis', breedDate: '', dueDate: '', kids: [], notes: 'Dam: Willow', photo: null, weights: [], vet: [] },
-  ];
-}
+const app     = initializeApp(firebaseConfig);
+const db      = getFirestore(app);
+const ANIMALS = collection(db, 'animals');
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let animals = [];
+let animals      = [];
 let filterStatus = 'all';
 let tempKids     = [];
-let tempPhoto    = null;
+let tempPhotoB64 = null;   // base64 string (preview + save)
+let tempPhotoNew = false;  // flag: user picked a new photo this session
 
-// ── Persistence ───────────────────────────────────────────────────────────────
-function load() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    animals = JSON.parse(stored);
-    // Migrate older records that lack weights/vet arrays
-    animals.forEach(a => {
-      if (!a.weights) a.weights = [];
-      if (!a.vet)     a.vet     = [];
+// ── Sync Banner ───────────────────────────────────────────────────────────────
+function showBanner(msg, type = 'info') {
+  const b = document.getElementById('syncBanner');
+  b.textContent = msg;
+  b.className = `sync-banner ${type}`;
+  b.classList.remove('hidden');
+  if (type !== 'error') setTimeout(() => b.classList.add('hidden'), 3000);
+}
+
+// ── Real-time Listener ────────────────────────────────────────────────────────
+function startListener() {
+  onSnapshot(ANIMALS, snap => {
+    animals = snap.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+    animals.sort((a, b) => {
+      const ga = a.status === 'kid' ? 2 : a.sex === 'M' ? 1 : 0;
+      const gb = b.status === 'kid' ? 2 : b.sex === 'M' ? 1 : 0;
+      if (ga !== gb) return ga - gb;
+      return (a.name || '').localeCompare(b.name || '');
     });
-  } else {
-    animals = seedData();
-  }
-  render();
+    render();
+  }, err => {
+    showBanner('⚠️ Connection issue — check your internet', 'error');
+    console.error(err);
+  });
 }
 
-function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(animals));
-}
-
-function nextId() {
-  return animals.length ? Math.max(...animals.map(a => a.id)) + 1 : 1;
-}
-
-// ── Date helpers ──────────────────────────────────────────────────────────────
+// ── Date Helpers ──────────────────────────────────────────────────────────────
 function formatDate(d) {
   if (!d) return '—';
-  const dt = new Date(d + 'T00:00:00');
-  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-
 function daysUntil(d) {
   if (!d) return null;
   const today = new Date(); today.setHours(0,0,0,0);
-  const target = new Date(d + 'T00:00:00');
-  return Math.round((target - today) / 86400000);
+  return Math.round((new Date(d + 'T00:00:00') - today) / 86400000);
 }
-
 function addDays(dateStr, days) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
 }
-
-function today() {
-  return new Date().toISOString().split('T')[0];
-}
+function today() { return new Date().toISOString().split('T')[0]; }
+function genId()  { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 function updateStats() {
@@ -134,20 +84,16 @@ function updateStats() {
   document.getElementById('statNursing').textContent  = animals.filter(a => a.status === 'nursing').length;
 
   const dueSoon = animals.filter(a => {
-    if (!a.dueDate) return false;
     const d = daysUntil(a.dueDate);
     return d !== null && d >= -3 && d <= 14;
   });
-
   const alertCard = document.getElementById('alertCard');
   if (dueSoon.length) {
     alertCard.classList.add('visible');
     document.getElementById('alertList').innerHTML = dueSoon.map(a => {
       const d = daysUntil(a.dueDate);
-      const label = d < 0
-        ? `<span>${Math.abs(d)}d overdue</span>`
-        : d === 0 ? '<span>Due TODAY</span>'
-        : `<span>in ${d} days</span>`;
+      const label = d < 0 ? `<span>${Math.abs(d)}d overdue</span>`
+        : d === 0 ? '<span>Due TODAY</span>' : `<span>in ${d} days</span>`;
       return `<div class="alert-item">${a.name} — ${label} — ${formatDate(a.dueDate)}</div>`;
     }).join('');
   } else {
@@ -158,88 +104,68 @@ function updateStats() {
 // ── Render ────────────────────────────────────────────────────────────────────
 function render() {
   updateStats();
-  const dateEl = document.getElementById('todayDate');
-  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
-  });
-
   let list = animals;
   if (filterStatus !== 'all') {
     if      (filterStatus === 'doe')  list = animals.filter(a => a.sex === 'F' && a.status !== 'kid');
     else if (filterStatus === 'buck') list = animals.filter(a => a.sex === 'M' && a.status !== 'kid');
     else                              list = animals.filter(a => a.status === filterStatus);
   }
-
   const grid = document.getElementById('goatGrid');
-  if (!list.length) {
-    grid.innerHTML = `<div class="empty-state"><div class="icon">🐐</div><p>No animals in this category.</p></div>`;
-    return;
-  }
-  grid.innerHTML = list.map(buildCard).join('');
+  grid.innerHTML = list.length
+    ? list.map(buildCard).join('')
+    : `<div class="empty-state"><div class="icon">🐐</div><p>No animals in this category.</p></div>`;
 }
 
 function buildCard(a) {
-  const d       = daysUntil(a.dueDate);
+  const d = daysUntil(a.dueDate);
   const urgentDue = d !== null && d >= 0 && d <= 7;
   const dueLine = a.dueDate
-    ? (d < 0  ? `Overdue ${Math.abs(d)}d`
-    : d === 0 ? 'Due TODAY'
-    : `Due in ${d}d`)
-    : '';
+    ? (d < 0 ? `Overdue ${Math.abs(d)}d` : d === 0 ? 'Due TODAY' : `Due in ${d}d`) : '';
 
-  // Last weight
-  const lastW = a.weights && a.weights.length
-    ? [...a.weights].sort((x,y) => x.date < y.date ? 1 : -1)[0]
-    : null;
+  const lastW = (a.weights||[]).length ? [...a.weights].sort((x,y)=>x.date<y.date?1:-1)[0] : null;
+  const lastV = (a.vet||[]).length     ? [...a.vet].sort((x,y)=>x.date<y.date?1:-1)[0]     : null;
 
-  // Last vet
-  const lastV = a.vet && a.vet.length
-    ? [...a.vet].sort((x,y) => x.date < y.date ? 1 : -1)[0]
-    : null;
-
-  const kidsHtml = (a.kids && a.kids.length)
-    ? `<div class="kids-section">
-        <div class="kids-label">Kids (${a.kids.length})</div>
-        ${a.kids.map(k => `<div class="kid-chip">${k.name || 'Kid'} <span class="sex-${k.sex?.toLowerCase()}">${k.sex || ''}</span></div>`).join('')}
-      </div>`
-    : '';
+  const kidsHtml = (a.kids||[]).length
+    ? `<div class="kids-section"><div class="kids-label">Kids (${a.kids.length})</div>
+       ${a.kids.map(k=>`<div class="kid-chip">${k.name||'Kid'} <span class="sex-${(k.sex||'').toLowerCase()}">${k.sex||''}</span></div>`).join('')}
+       </div>` : '';
 
   return `<div class="goat-card">
     ${a.photo
-      ? `<img class="card-photo" src="${a.photo}" alt="${a.name}" onclick="triggerCardPhoto(${a.id})" title="Tap to change photo">`
-      : `<div class="card-photo-placeholder" onclick="triggerCardPhoto(${a.id})"><div class="ph-icon">📷</div><div class="ph-label">Add Photo</div></div>`
+      ? `<img class="card-photo" src="${a.photo}" alt="${a.name}" onclick="triggerCardPhoto('${a.firestoreId}')">`
+      : `<div class="card-photo-placeholder" onclick="triggerCardPhoto('${a.firestoreId}')"><div class="ph-icon">📷</div><div class="ph-label">Add Photo</div></div>`
     }
-    <input type="file" id="cardPhoto_${a.id}" class="photo-upload-input" accept="image/*" capture="environment" onchange="handleCardPhoto(event,${a.id})">
+    <input type="file" id="cardPhoto_${a.firestoreId}" class="photo-upload-input" accept="image/*" capture="environment" onchange="handleCardPhoto(event,'${a.firestoreId}')">
 
     <div class="card-header">
       <div>
         <div class="goat-name">${a.name}</div>
-        <div class="goat-id">${[a.age, a.breed].filter(Boolean).join(' · ') || '—'}</div>
+        <div class="goat-id">${[a.age,a.breed].filter(Boolean).join(' · ')||'—'}</div>
       </div>
       <div class="badge-group">
-        <span class="sex-badge sex-${a.sex}">${a.sex === 'F' ? '♀' : '♂'}</span>
+        <span class="sex-badge sex-${a.sex}">${a.sex==='F'?'♀':'♂'}</span>
         <span class="status-badge status-${a.status}">${a.status}</span>
       </div>
     </div>
 
     <div class="card-body">
-      ${a.dob       ? `<div class="info-row"><span>Born</span><strong>${formatDate(a.dob)}</strong></div>` : ''}
-      ${a.sire && a.sire !== 'Unknown' ? `<div class="info-row"><span>Sire</span><strong>${a.sire}</strong></div>` : ''}
-      ${a.breedDate ? `<div class="info-row"><span>Fertilized</span><strong>${formatDate(a.breedDate)}</strong></div>` : ''}
-      ${a.dueDate   ? `<div class="info-row"><span>Due/Delivered</span><strong style="color:${urgentDue ? 'var(--rust)' : 'inherit'}">${formatDate(a.dueDate)}${dueLine ? ' · ' + dueLine : ''}</strong></div>` : ''}
-      ${a.notes     ? `<div class="card-note">${a.notes}</div>` : ''}
+      ${a.dob       ?`<div class="info-row"><span>Born</span><strong>${formatDate(a.dob)}</strong></div>`:''}
+      ${a.sire&&a.sire!=='Unknown'?`<div class="info-row"><span>Sire</span><strong>${a.sire}</strong></div>`:''}
+      ${a.breedDate ?`<div class="info-row"><span>Fertilized</span><strong>${formatDate(a.breedDate)}</strong></div>`:''}
+      ${a.dueDate   ?`<div class="info-row"><span>Due/Delivered</span><strong style="color:${urgentDue?'var(--rust)':'inherit'}">${formatDate(a.dueDate)}${dueLine?' · '+dueLine:''}</strong></div>`:''}
+      ${a.notes     ?`<div class="card-note">${a.notes}</div>`:''}
       ${kidsHtml}
       <div style="display:flex;flex-wrap:wrap;gap:0;margin-top:2px">
-        ${lastW ? `<div class="weight-pill">⚖️ ${lastW.value} lbs <span style="opacity:.6;font-size:10px">· ${formatDate(lastW.date)}</span></div>` : ''}
-        ${lastV ? `<div class="vet-pill">🩺 ${lastV.type} <span style="opacity:.6;font-size:10px">· ${formatDate(lastV.date)}</span></div>` : ''}
+        ${lastW?`<div class="weight-pill">⚖️ ${lastW.value} lbs <span style="opacity:.6;font-size:10px">· ${formatDate(lastW.date)}</span></div>`:''}
+        ${lastV?`<div class="vet-pill">🩺 ${lastV.type} <span style="opacity:.6;font-size:10px">· ${formatDate(lastV.date)}</span></div>`:''}
       </div>
     </div>
 
     <div class="card-actions">
-      <button class="btn btn-outline btn-sm" onclick="editAnimal(${a.id})">✏️ Edit</button>
-      <button class="btn btn-outline btn-sm" onclick="openWeightModal(${a.id})">⚖️ Weight</button>
-      <button class="btn btn-outline btn-sm" onclick="openVetModal(${a.id})">🩺 Vet</button>
-      <button class="btn btn-outline btn-sm btn-danger" onclick="deleteAnimal(${a.id})">🗑️</button>
+      <button class="btn btn-outline btn-sm" onclick="editAnimal('${a.firestoreId}')">✏️ Edit</button>
+      <button class="btn btn-outline btn-sm" onclick="openWeightModal('${a.firestoreId}')">⚖️ Weight</button>
+      <button class="btn btn-outline btn-sm" onclick="openVetModal('${a.firestoreId}')">🩺 Vet</button>
+      <button class="btn btn-outline btn-sm btn-danger" onclick="deleteAnimal('${a.firestoreId}','${a.name}')">🗑️</button>
     </div>
   </div>`;
 }
@@ -251,22 +177,42 @@ function filterAnimals(status, el) {
   render();
 }
 
-// ── Photo ─────────────────────────────────────────────────────────────────────
+// ── Photo Handling (base64 → Firestore) ──────────────────────────────────────
+function resizeToBase64(file, maxWidth, quality, callback) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      callback(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Modal photo preview
 function handleModalPhoto(event) {
   const file = event.target.files[0];
   if (!file) return;
-  resizeImage(file, 800, result => {
-    tempPhoto = result;
-    document.getElementById('modalPhotoPreview').src = result;
+  resizeToBase64(file, 900, 0.72, b64 => {
+    tempPhotoB64 = b64;
+    tempPhotoNew = true;
+    document.getElementById('modalPhotoPreview').src           = b64;
     document.getElementById('modalPhotoPreview').style.display = 'block';
-    document.getElementById('modalPhotoHint').style.display   = 'none';
-    document.getElementById('modalPhotoRemove').style.display = 'flex';
+    document.getElementById('modalPhotoHint').style.display    = 'none';
+    document.getElementById('modalPhotoRemove').style.display  = 'flex';
   });
 }
 
 function removeModalPhoto(e) {
   e.stopPropagation();
-  tempPhoto = null;
+  tempPhotoB64 = null;
+  tempPhotoNew = true; // mark as intentionally cleared
   document.getElementById('modalPhotoPreview').src            = '';
   document.getElementById('modalPhotoPreview').style.display  = 'none';
   document.getElementById('modalPhotoHint').style.display     = 'flex';
@@ -274,13 +220,14 @@ function removeModalPhoto(e) {
   document.getElementById('modalPhotoInput').value            = '';
 }
 
-function setModalPhoto(data) {
-  tempPhoto = data || null;
+function setModalPhoto(b64) {
+  tempPhotoB64 = b64 || null;
+  tempPhotoNew = false;
   const prev = document.getElementById('modalPhotoPreview');
   const hint = document.getElementById('modalPhotoHint');
   const rem  = document.getElementById('modalPhotoRemove');
-  if (tempPhoto) {
-    prev.src = tempPhoto; prev.style.display = 'block';
+  if (b64) {
+    prev.src = b64; prev.style.display = 'block';
     hint.style.display = 'none'; rem.style.display = 'flex';
   } else {
     prev.src = ''; prev.style.display = 'none';
@@ -288,33 +235,24 @@ function setModalPhoto(data) {
   }
 }
 
-function triggerCardPhoto(id) { document.getElementById('cardPhoto_' + id).click(); }
-
-function handleCardPhoto(event, id) {
-  const file = event.target.files[0];
-  if (!file) return;
-  resizeImage(file, 800, result => {
-    const a = animals.find(x => x.id === id);
-    if (a) { a.photo = result; persist(); render(); }
-  });
+// Direct card photo tap — compress and save immediately
+function triggerCardPhoto(firestoreId) {
+  document.getElementById('cardPhoto_' + firestoreId).click();
 }
 
-// Resize image before storing to keep localStorage usage low
-function resizeImage(file, maxWidth, callback) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxWidth / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width  = img.width  * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      callback(canvas.toDataURL('image/jpeg', 0.75));
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+function handleCardPhoto(event, firestoreId) {
+  const file = event.target.files[0];
+  if (!file) return;
+  showBanner('📷 Processing photo…', 'info');
+  resizeToBase64(file, 900, 0.72, async b64 => {
+    try {
+      await setDoc(doc(db, 'animals', firestoreId), { photo: b64, updatedAt: serverTimestamp() }, { merge: true });
+      showBanner('✅ Photo saved!', 'success');
+    } catch(err) {
+      showBanner('❌ Photo save failed', 'error');
+      console.error(err);
+    }
+  });
 }
 
 // ── Add / Edit Animal ─────────────────────────────────────────────────────────
@@ -326,17 +264,17 @@ function openAddAnimal() {
   document.getElementById('goatDOB').value    = '';
   document.getElementById('goatSex').value    = 'F';
   document.getElementById('goatStatus').value = 'open';
-  tempKids = []; tempPhoto = null;
+  tempKids = [];
   setModalPhoto(null);
   renderKidsList();
   document.getElementById('goatModal').classList.remove('hidden');
 }
 
-function editAnimal(id) {
-  const a = animals.find(x => x.id === id);
+function editAnimal(firestoreId) {
+  const a = animals.find(x => x.firestoreId === firestoreId);
   if (!a) return;
   document.getElementById('goatModalTitle').textContent   = 'Edit — ' + a.name;
-  document.getElementById('editGoatId').value             = a.id;
+  document.getElementById('editGoatId').value             = a.firestoreId;
   document.getElementById('goatName').value               = a.name      || '';
   document.getElementById('goatTag').value                = a.tag       || '';
   document.getElementById('goatBreed').value              = a.breed     || '';
@@ -348,56 +286,75 @@ function editAnimal(id) {
   document.getElementById('goatBreedDate').value          = a.breedDate || '';
   document.getElementById('goatDueDate').value            = a.dueDate   || '';
   document.getElementById('goatNotes').value              = a.notes     || '';
-  tempKids  = JSON.parse(JSON.stringify(a.kids || []));
+  tempKids = JSON.parse(JSON.stringify(a.kids || []));
   setModalPhoto(a.photo || null);
   renderKidsList();
   document.getElementById('goatModal').classList.remove('hidden');
 }
 
-function saveGoat() {
+async function saveGoat() {
   const name = document.getElementById('goatName').value.trim();
   if (!name) { alert('Please enter a name.'); return; }
-  const editId = document.getElementById('editGoatId').value;
 
-  const data = {
-    name,
-    tag:       document.getElementById('goatTag').value.trim(),
-    sex:       document.getElementById('goatSex').value,
-    breed:     document.getElementById('goatBreed').value.trim(),
-    age:       document.getElementById('goatAge').value.trim(),
-    dob:       document.getElementById('goatDOB').value,
-    status:    document.getElementById('goatStatus').value,
-    sire:      document.getElementById('goatSire').value.trim(),
-    breedDate: document.getElementById('goatBreedDate').value,
-    dueDate:   document.getElementById('goatDueDate').value,
-    notes:     document.getElementById('goatNotes').value.trim(),
-    kids:      tempKids,
-    photo:     tempPhoto,
-  };
+  const btn = document.getElementById('saveGoatBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
 
-  if (editId) {
-    const idx = animals.findIndex(a => a.id == editId);
-    // Preserve weights and vet logs on edit
-    animals[idx] = { ...animals[idx], ...data };
-  } else {
-    animals.push({ id: nextId(), ...data, weights: [], vet: [] });
+  try {
+    const editId      = document.getElementById('editGoatId').value;
+    const firestoreId = editId || genId();
+    const existing    = editId ? animals.find(x => x.firestoreId === editId) : null;
+
+    // Photo: use new one if picked, keep existing if not touched, clear if removed
+    const photo = tempPhotoNew ? (tempPhotoB64 || null) : (existing?.photo || null);
+
+    const data = {
+      name,
+      tag:       document.getElementById('goatTag').value.trim(),
+      sex:       document.getElementById('goatSex').value,
+      breed:     document.getElementById('goatBreed').value.trim(),
+      age:       document.getElementById('goatAge').value.trim(),
+      dob:       document.getElementById('goatDOB').value,
+      status:    document.getElementById('goatStatus').value,
+      sire:      document.getElementById('goatSire').value.trim(),
+      breedDate: document.getElementById('goatBreedDate').value,
+      dueDate:   document.getElementById('goatDueDate').value,
+      notes:     document.getElementById('goatNotes').value.trim(),
+      kids:      tempKids,
+      photo:     photo,
+      weights:   existing?.weights || [],
+      vet:       existing?.vet     || [],
+      updatedAt: serverTimestamp(),
+    };
+    if (!editId) data.createdAt = serverTimestamp();
+
+    await setDoc(doc(db, 'animals', firestoreId), data, { merge: !!editId });
+    showBanner(`✅ ${name} saved!`, 'success');
+    closeModal('goatModal');
+  } catch(err) {
+    showBanner('❌ Save failed — check connection', 'error');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
   }
-  persist(); render();
-  closeModal('goatModal');
 }
 
-function deleteAnimal(id) {
-  const a = animals.find(x => x.id === id);
-  if (!confirm(`Remove ${a.name} from the registry?`)) return;
-  animals = animals.filter(x => x.id !== id);
-  persist(); render();
+async function deleteAnimal(firestoreId, name) {
+  if (!confirm(`Remove ${name} from the registry?`)) return;
+  try {
+    await deleteDoc(doc(db, 'animals', firestoreId));
+    showBanner(`🗑️ ${name} removed`, 'info');
+  } catch(err) {
+    showBanner('❌ Delete failed', 'error');
+  }
 }
 
 // ── Kids ──────────────────────────────────────────────────────────────────────
 function renderKidsList() {
-  document.getElementById('kidsList').innerHTML = tempKids.map((k, i) => `
+  document.getElementById('kidsList').innerHTML = tempKids.map((k,i) => `
     <div class="kid-row">
-      <input type="text" value="${k.name || ''}" placeholder="Name" onchange="tempKids[${i}].name=this.value">
+      <input type="text" value="${k.name||''}" placeholder="Name" onchange="tempKids[${i}].name=this.value">
       <select onchange="tempKids[${i}].sex=this.value">
         <option value="F" ${k.sex==='F'?'selected':''}>♀ F</option>
         <option value="M" ${k.sex==='M'?'selected':''}>♂ M</option>
@@ -406,172 +363,179 @@ function renderKidsList() {
       <button class="btn-icon" onclick="removeKid(${i})">×</button>
     </div>`).join('');
 }
-
-function addKidRow() {
-  tempKids.push({ name: '', sex: 'F', dob: today(), weight: '' });
-  renderKidsList();
-}
-
-function removeKid(i) {
-  tempKids.splice(i, 1);
-  renderKidsList();
-}
+function addKidRow()  { tempKids.push({ name:'', sex:'F', dob:today(), weight:'' }); renderKidsList(); }
+function removeKid(i) { tempKids.splice(i,1); renderKidsList(); }
 
 // ── Breeding ──────────────────────────────────────────────────────────────────
 function openAddBreeding() {
-  const does = animals.filter(a => a.sex === 'F' && a.status !== 'kid');
-  document.getElementById('breedDoe').innerHTML   = does.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-  document.getElementById('breedSire').value      = 'Elvis';
-  document.getElementById('breedDate').value      = today();
-  document.getElementById('breedMethod').value    = 'Natural';
-  document.getElementById('breedNotes').value     = '';
+  const does = animals.filter(a => a.sex==='F' && a.status!=='kid');
+  document.getElementById('breedDoe').innerHTML = does.map(a=>`<option value="${a.firestoreId}">${a.name}</option>`).join('');
+  document.getElementById('breedSire').value    = 'Elvis';
+  document.getElementById('breedDate').value    = today();
+  document.getElementById('breedMethod').value  = 'Natural';
+  document.getElementById('breedNotes').value   = '';
   updateEstDue();
   document.getElementById('breedingModal').classList.remove('hidden');
 }
 
 function updateEstDue() {
   const d = document.getElementById('breedDate').value;
-  document.getElementById('estDueDisplay').textContent = d ? formatDate(addDays(d, 150)) : '—';
+  document.getElementById('estDueDisplay').textContent = d ? formatDate(addDays(d,150)) : '—';
 }
 
-function saveBreeding() {
-  const doeId = parseInt(document.getElementById('breedDoe').value);
-  const a = animals.find(x => x.id === doeId);
+async function saveBreeding() {
+  const firestoreId = document.getElementById('breedDoe').value;
+  const a           = animals.find(x => x.firestoreId === firestoreId);
   if (!a) return;
-  a.sire      = document.getElementById('breedSire').value.trim();
-  a.breedDate = document.getElementById('breedDate').value;
-  a.dueDate   = addDays(a.breedDate, 150);
-  a.status    = 'bred';
-  const notes = document.getElementById('breedNotes').value.trim();
-  if (notes) a.notes = (a.notes ? a.notes + ' | ' : '') + notes;
-  persist(); render();
-  closeModal('breedingModal');
+  const breedDate = document.getElementById('breedDate').value;
+  const notes     = document.getElementById('breedNotes').value.trim();
+  const update    = {
+    sire: document.getElementById('breedSire').value.trim(),
+    breedDate, dueDate: addDays(breedDate,150), status:'bred', updatedAt: serverTimestamp()
+  };
+  if (notes) update.notes = (a.notes ? a.notes+' | ' : '') + notes;
+  try {
+    await setDoc(doc(db,'animals',firestoreId), update, { merge:true });
+    showBanner(`✅ Breeding recorded for ${a.name}`,'success');
+    closeModal('breedingModal');
+  } catch(err) { showBanner('❌ Save failed','error'); }
 }
 
 // ── Weight Log ────────────────────────────────────────────────────────────────
-function openWeightModal(id) {
-  const a = animals.find(x => x.id === id);
+function openWeightModal(firestoreId) {
+  const a = animals.find(x => x.firestoreId===firestoreId);
   if (!a) return;
-  document.getElementById('weightAnimalId').value  = id;
+  document.getElementById('weightAnimalId').value        = firestoreId;
   document.getElementById('weightModalName').textContent = a.name;
-  document.getElementById('weightDate').value       = today();
-  document.getElementById('weightValue').value      = '';
-  document.getElementById('weightNote').value       = '';
+  document.getElementById('weightDate').value            = today();
+  document.getElementById('weightValue').value           = '';
+  document.getElementById('weightNote').value            = '';
   renderWeightTable(a);
   document.getElementById('weightModal').classList.remove('hidden');
 }
 
 function renderWeightTable(a) {
-  const entries = [...(a.weights || [])].sort((x,y) => x.date < y.date ? 1 : -1);
-  const tbody   = document.getElementById('weightTableBody');
-  const empty   = document.getElementById('weightEmpty');
-
-  if (!entries.length) {
-    tbody.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
+  const entries = [...(a.weights||[])].sort((x,y)=>x.date<y.date?1:-1);
+  const tbody = document.getElementById('weightTableBody');
+  const empty = document.getElementById('weightEmpty');
+  if (!entries.length) { tbody.innerHTML=''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
-  tbody.innerHTML = entries.map((w, i) => `
+  tbody.innerHTML = entries.map((w,i)=>`
     <tr>
       <td>${formatDate(w.date)}</td>
       <td><strong>${w.value} lbs</strong></td>
-      <td>${w.note || '—'}</td>
-      <td><button class="del-btn" onclick="deleteWeightEntry(${a.id}, ${i})">🗑</button></td>
+      <td>${w.note||'—'}</td>
+      <td><button class="del-btn" onclick="deleteWeightEntry('${a.firestoreId}',${i})">🗑</button></td>
     </tr>`).join('');
 }
 
-function saveWeightEntry() {
-  const id  = parseInt(document.getElementById('weightAnimalId').value);
+async function saveWeightEntry() {
+  const firestoreId = document.getElementById('weightAnimalId').value;
   const val = parseFloat(document.getElementById('weightValue').value);
   const dt  = document.getElementById('weightDate').value;
-  if (!dt || isNaN(val) || val <= 0) { alert('Please enter a valid date and weight.'); return; }
-
-  const a = animals.find(x => x.id === id);
-  if (!a.weights) a.weights = [];
-  a.weights.push({ date: dt, value: val, note: document.getElementById('weightNote').value.trim() });
-  persist(); renderWeightTable(a); render();
-  document.getElementById('weightValue').value = '';
-  document.getElementById('weightNote').value  = '';
+  if (!dt||isNaN(val)||val<=0) { alert('Please enter a valid date and weight.'); return; }
+  const a = animals.find(x=>x.firestoreId===firestoreId);
+  const weights = [...(a.weights||[]), { date:dt, value:val, note:document.getElementById('weightNote').value.trim() }];
+  try {
+    await setDoc(doc(db,'animals',firestoreId),{weights,updatedAt:serverTimestamp()},{merge:true});
+    document.getElementById('weightValue').value='';
+    document.getElementById('weightNote').value='';
+    showBanner('✅ Weight saved','success');
+  } catch(err) { showBanner('❌ Save failed','error'); }
 }
 
-function deleteWeightEntry(animalId, index) {
-  const a = animals.find(x => x.id === animalId);
-  if (!a) return;
-  const sorted = [...a.weights].sort((x,y) => x.date < y.date ? 1 : -1);
-  const entry  = sorted[index];
-  a.weights = a.weights.filter(w => w !== entry);
-  persist(); renderWeightTable(a); render();
+async function deleteWeightEntry(firestoreId, sortedIdx) {
+  const a      = animals.find(x=>x.firestoreId===firestoreId);
+  const sorted = [...(a.weights||[])].sort((x,y)=>x.date<y.date?1:-1);
+  const entry  = sorted[sortedIdx];
+  const weights = (a.weights||[]).filter(w=>!(w.date===entry.date&&w.value===entry.value));
+  await setDoc(doc(db,'animals',firestoreId),{weights,updatedAt:serverTimestamp()},{merge:true});
 }
 
-// ── Vet / Treatment Log ───────────────────────────────────────────────────────
-function openVetModal(id) {
-  const a = animals.find(x => x.id === id);
+// ── Vet Log ───────────────────────────────────────────────────────────────────
+function openVetModal(firestoreId) {
+  const a = animals.find(x=>x.firestoreId===firestoreId);
   if (!a) return;
-  document.getElementById('vetAnimalId').value         = id;
-  document.getElementById('vetModalName').textContent  = a.name;
-  document.getElementById('vetDate').value             = today();
-  document.getElementById('vetType').value             = 'Vaccine';
-  document.getElementById('vetTreatment').value        = '';
+  document.getElementById('vetAnimalId').value        = firestoreId;
+  document.getElementById('vetModalName').textContent = a.name;
+  document.getElementById('vetDate').value            = today();
+  document.getElementById('vetType').value            = 'Vaccine';
+  document.getElementById('vetTreatment').value       = '';
   renderVetTable(a);
   document.getElementById('vetModal').classList.remove('hidden');
 }
 
 function renderVetTable(a) {
-  const entries = [...(a.vet || [])].sort((x,y) => x.date < y.date ? 1 : -1);
-  const tbody   = document.getElementById('vetTableBody');
-  const empty   = document.getElementById('vetEmpty');
-
-  if (!entries.length) {
-    tbody.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
+  const entries = [...(a.vet||[])].sort((x,y)=>x.date<y.date?1:-1);
+  const tbody = document.getElementById('vetTableBody');
+  const empty = document.getElementById('vetEmpty');
+  if (!entries.length) { tbody.innerHTML=''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
-  tbody.innerHTML = entries.map((v, i) => `
+  tbody.innerHTML = entries.map((v,i)=>`
     <tr>
       <td>${formatDate(v.date)}</td>
       <td><span class="status-badge status-bred" style="font-size:9px">${v.type}</span></td>
-      <td>${v.treatment || '—'}</td>
-      <td><button class="del-btn" onclick="deleteVetEntry(${a.id}, ${i})">🗑</button></td>
+      <td>${v.treatment||'—'}</td>
+      <td><button class="del-btn" onclick="deleteVetEntry('${a.firestoreId}',${i})">🗑</button></td>
     </tr>`).join('');
 }
 
-function saveVetEntry() {
-  const id        = parseInt(document.getElementById('vetAnimalId').value);
+async function saveVetEntry() {
+  const firestoreId = document.getElementById('vetAnimalId').value;
   const dt        = document.getElementById('vetDate').value;
   const type      = document.getElementById('vetType').value;
   const treatment = document.getElementById('vetTreatment').value.trim();
   if (!dt) { alert('Please select a date.'); return; }
-
-  const a = animals.find(x => x.id === id);
-  if (!a.vet) a.vet = [];
-  a.vet.push({ date: dt, type, treatment });
-  persist(); renderVetTable(a); render();
-  document.getElementById('vetTreatment').value = '';
+  const a   = animals.find(x=>x.firestoreId===firestoreId);
+  const vet = [...(a.vet||[]), {date:dt,type,treatment}];
+  try {
+    await setDoc(doc(db,'animals',firestoreId),{vet,updatedAt:serverTimestamp()},{merge:true});
+    document.getElementById('vetTreatment').value='';
+    showBanner('✅ Vet record saved','success');
+  } catch(err) { showBanner('❌ Save failed','error'); }
 }
 
-function deleteVetEntry(animalId, index) {
-  const a = animals.find(x => x.id === animalId);
-  if (!a) return;
-  const sorted = [...a.vet].sort((x,y) => x.date < y.date ? 1 : -1);
-  const entry  = sorted[index];
-  a.vet = a.vet.filter(v => v !== entry);
-  persist(); renderVetTable(a); render();
+async function deleteVetEntry(firestoreId, sortedIdx) {
+  const a      = animals.find(x=>x.firestoreId===firestoreId);
+  const sorted = [...(a.vet||[])].sort((x,y)=>x.date<y.date?1:-1);
+  const entry  = sorted[sortedIdx];
+  const vet = (a.vet||[]).filter(v=>!(v.date===entry.date&&v.type===entry.type&&v.treatment===entry.treatment));
+  await setDoc(doc(db,'animals',firestoreId),{vet,updatedAt:serverTimestamp()},{merge:true});
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+// Expose to HTML onclick handlers
+window.filterAnimals    = filterAnimals;
+window.openAddAnimal    = openAddAnimal;
+window.editAnimal       = editAnimal;
+window.saveGoat         = saveGoat;
+window.deleteAnimal     = deleteAnimal;
+window.openAddBreeding  = openAddBreeding;
+window.saveBreeding     = saveBreeding;
+window.updateEstDue     = updateEstDue;
+window.closeModal       = closeModal;
+window.addKidRow        = addKidRow;
+window.removeKid        = removeKid;
+window.handleModalPhoto = handleModalPhoto;
+window.removeModalPhoto = removeModalPhoto;
+window.triggerCardPhoto = triggerCardPhoto;
+window.handleCardPhoto  = handleCardPhoto;
+window.openWeightModal  = openWeightModal;
+window.saveWeightEntry  = saveWeightEntry;
+window.deleteWeightEntry= deleteWeightEntry;
+window.openVetModal     = openVetModal;
+window.saveVetEntry     = saveVetEntry;
+window.deleteVetEntry   = deleteVetEntry;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('breedDate').addEventListener('change', updateEstDue);
   document.getElementById('goatBreedDate').addEventListener('change', () => {
     const d = document.getElementById('goatBreedDate').value;
-    if (d && !document.getElementById('goatDueDate').value) {
+    if (d && !document.getElementById('goatDueDate').value)
       document.getElementById('goatDueDate').value = addDays(d, 150);
-    }
   });
+  startListener();
 });
-
-// ── Start ─────────────────────────────────────────────────────────────────────
-load();
