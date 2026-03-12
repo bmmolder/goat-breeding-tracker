@@ -127,7 +127,10 @@ function updateStats() {
     alertCard.classList.add('visible');
     document.getElementById('alertList').innerHTML = dueSoon.map(a => {
       const d = daysUntil(a.dueDate);
-      const lbl = d<0?`${Math.abs(d)}d overdue`:d===0?'Due TODAY'
+      const lbl = d<0?`${Math.abs(d)}d overdue`:d===0?'Due TODAY':`in ${d} days`;
+      return `<div class="alert-item">${a.name} — <span>${lbl}</span> — ${formatDate(a.dueDate)}</div>`;
+    }).join('');
+  } else { alertCard.classList.remove('visible'); }
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
