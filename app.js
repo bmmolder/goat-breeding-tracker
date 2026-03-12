@@ -354,12 +354,12 @@ async function deleteAnimal(firestoreId, name) {
 function renderKidsList() {
   document.getElementById('kidsList').innerHTML = tempKids.map((k,i) => `
     <div class="kid-row">
-      <input type="text" value="${k.name||''}" placeholder="Name" onchange="tempKids[${i}].name=this.value">
+      <input type="text" value="${k.name||''}" placeholder="Name" oninput="tempKids[${i}].name=this.value">
       <select onchange="tempKids[${i}].sex=this.value">
         <option value="F" ${k.sex==='F'?'selected':''}>♀ F</option>
         <option value="M" ${k.sex==='M'?'selected':''}>♂ M</option>
       </select>
-      <input type="text" value="${k.weight||''}" placeholder="lbs" onchange="tempKids[${i}].weight=this.value">
+      <input type="text" value="${k.weight||''}" placeholder="lbs" oninput="tempKids[${i}].weight=this.value">
       <button class="btn-icon" onclick="removeKid(${i})">×</button>
     </div>`).join('');
 }
