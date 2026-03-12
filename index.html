@@ -51,7 +51,7 @@
   <div class="toolbar" id="toolbar">
     <button class="btn btn-primary edit-only" onclick="openAddAnimal()">＋ Add Animal</button>
     <button class="btn btn-secondary edit-only" onclick="openAddBreeding()">♦ Breeding</button>
-    <button class="btn btn-outline edit-only" onclick="openRecycleBin()">🗑️ Bin</button>
+    <button class="btn btn-outline" onclick="openRecycleBin()">📋 Records</button>
   </div>
 
   <!-- Filter tabs -->
@@ -278,13 +278,94 @@
 <div class="modal-overlay hidden" id="recycleBinModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">🗑️ Recycle Bin</div>
+      <div class="modal-title">📋 Records</div>
       <button class="modal-close" onclick="closeModal('recycleBinModal')">×</button>
     </div>
-    <div class="modal-body" id="recycleBinList" style="padding:0">
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--birch);padding:0 16px">
+      <button id="recordsTab_bin"       class="records-tab active" onclick="openRecords('bin')">🗑️ Bin</button>
+      <button id="recordsTab_sold"      class="records-tab"        onclick="openRecords('sold')">💰 Sold</button>
+      <button id="recordsTab_graveyard" class="records-tab"        onclick="openRecords('graveyard')">🪦 Graveyard</button>
     </div>
+    <div class="modal-body" id="recycleBinList" style="padding:0"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('recycleBinModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DISPOSE MODAL ═══ -->
+<div class="modal-overlay hidden" id="disposeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Remove — <span id="disposeAnimalName"></span></div>
+      <button class="modal-close" onclick="closeModal('disposeModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="disposeAnimalId">
+      <div class="form-group">
+        <label class="form-label">What happened?</label>
+        <select id="disposeType" class="form-select" onchange="onDisposeTypeChange()">
+          <option value="">— Select —</option>
+          <option value="sold">💰 Sold</option>
+          <option value="deceased">🪦 Deceased</option>
+          <option value="delete">🗑️ Move to Recycle Bin</option>
+        </select>
+      </div>
+      <div id="disposeCause" class="hidden">
+        <div class="form-group">
+          <label class="form-label">Cause of Death</label>
+          <select id="disposeDeathCause" class="form-select">
+            <option value="disease">🦠 Disease</option>
+            <option value="parasites">🪱 Parasites</option>
+            <option value="predator">🐺 Predator</option>
+            <option value="old age">👴 Old Age</option>
+            <option value="unknown">❓ Unknown</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" id="disposeDate" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <input type="text" id="disposeNotes" class="form-input" placeholder="e.g. sold to Smith Farm">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('disposeModal')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDispose()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ GRADUATE KID MODAL ═══ -->
+<div class="modal-overlay hidden" id="graduateModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🎓 Graduate — <span id="graduateAnimalName"></span></div>
+      <button class="modal-close" onclick="closeModal('graduateModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="graduateAnimalId">
+      <div class="form-group">
+        <label class="form-label">Promote to</label>
+        <select id="graduateRole" class="form-select" onchange="onGraduateRoleChange()">
+          <option value="doe">♀ Doe</option>
+          <option value="buck">♂ Buck</option>
+        </select>
+      </div>
+      <div id="graduateWetherRow" class="form-group" style="display:none">
+        <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="graduateWether" style="width:18px;height:18px">
+          Mark as Wether (castrated)
+        </label>
+      </div>
+      <p style="color:var(--oak);font-size:13px;margin-top:8px">This will move <span id="graduateAnimalName"></span> from Kids to the active herd as an open doe/buck.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('graduateModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmGraduate()">🎓 Graduate</button>
     </div>
   </div>
 </div>

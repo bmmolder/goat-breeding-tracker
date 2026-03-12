@@ -18,8 +18,10 @@ const firebaseConfig = {
 
 const app     = initializeApp(firebaseConfig);
 const db      = getFirestore(app);
-const ANIMALS = collection(db, 'animals');
-const DELETED = collection(db, 'deleted_animals');
+const ANIMALS  = collection(db, 'animals');
+const DELETED  = collection(db, 'deleted_animals');
+const SOLD     = collection(db, 'sold_animals');
+const DECEASED = collection(db, 'deceased_animals');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let animals      = [];
@@ -116,16 +118,16 @@ function updateStats() {
   document.getElementById('statKids').textContent     = animals.filter(a=>a.status==='kid').length;
   document.getElementById('statPregnant').textContent = animals.filter(a=>a.status==='pregnant').length;
   document.getElementById('statNursing').textContent  = animals.filter(a=>a.status==='nursing').length;
-  const dueSoon = animals.filter(a => { const d=daysUntil(a.dueDate); return d!==null&&d>=-3&&d<=14; });
+  const dueSoon = animals.filter(a => {
+    if (a.status === 'nursing') return false; // already delivered
+    const d=daysUntil(a.dueDate); return d!==null&&d>=-3&&d<=14;
+  });
   const alertCard = document.getElementById('alertCard');
   if (dueSoon.length) {
     alertCard.classList.add('visible');
     document.getElementById('alertList').innerHTML = dueSoon.map(a => {
       const d = daysUntil(a.dueDate);
-      const lbl = d<0?`${Math.abs(d)}d overdue`:d===0?'Due TODAY':`in ${d} days`;
-      return `<div class="alert-item">${a.name} — <span>${lbl}</span> — ${formatDate(a.dueDate)}</div>`;
-    }).join('');
-  } else { alertCard.classList.remove('visible'); }
+      const lbl = d<0?`${Math.abs(d)}d overdue`:d===0?'Due TODAY'
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -144,8 +146,11 @@ function render() {
 
 function buildCard(a) {
   const d = daysUntil(a.dueDate);
-  const urgentDue = d!==null&&d>=0&&d<=7;
-  const dueLine = a.dueDate?(d<0?`Overdue ${Math.abs(d)}d`:d===0?'Due TODAY':`Due in ${d}d`):'';
+  const isNursing = a.status==='nursing';
+  const urgentDue = !isNursing&&d!==null&&d>=0&&d<=7;
+  const dueLine = a.dueDate
+    ? (isNursing?'':(d<0?`Overdue ${Math.abs(d)}d`:d===0?'Due TODAY':`Due in ${d}d`))
+    : '';
   const lastW = (a.weights||[]).length?[...a.weights].sort((x,y)=>x.date<y.date?1:-1)[0]:null;
   const lastV = (a.vet||[]).length?[...a.vet].sort((x,y)=>x.date<y.date?1:-1)[0]:null;
   const kidsHtml = (a.kids||[]).length
@@ -161,7 +166,7 @@ function buildCard(a) {
       <div><div class="goat-name">${a.name}</div>
       <div class="goat-id">${[a.age,a.breed].filter(Boolean).join(' · ')||'—'}</div></div>
       <div class="badge-group">
-        <span class="sex-badge sex-${a.sex}">${a.sex==='F'?'♀':'♂'}</span>
+        <span class="sex-badge sex-${a.sex}">${a.sex==='F'?'♀':a.wether?'✂️ W':'♂'}</span>
         <span class="status-badge status-${a.status}">${a.status}</span>
       </div>
     </div>
@@ -181,7 +186,8 @@ function buildCard(a) {
       <button class="btn btn-outline btn-sm edit-only" onclick="editAnimal('${a.firestoreId}')">✏️ Edit</button>
       <button class="btn btn-outline btn-sm edit-only" onclick="openWeightModal('${a.firestoreId}')">⚖️ Weight</button>
       <button class="btn btn-outline btn-sm edit-only" onclick="openVetModal('${a.firestoreId}')">🩺 Vet</button>
-      <button class="btn btn-outline btn-sm btn-danger edit-only" onclick="deleteAnimal('${a.firestoreId}','${a.name}')">🗑️</button>
+      ${a.status==='kid'?`<button class="btn btn-outline btn-sm edit-only" onclick="openGraduateModal('${a.firestoreId}')">🎓 Graduate</button>`:''}
+      <button class="btn btn-outline btn-sm btn-danger edit-only" onclick="openDisposeModal('${a.firestoreId}','${a.name}')">🗑️</button>
     </div>
   </div>`;
 }
@@ -302,15 +308,72 @@ async function saveGoat() {
   } catch(err){showBanner('❌ Save failed','error');console.error(err);}
   finally{btn.disabled=false;btn.textContent='Save';}
 }
-async function deleteAnimal(firestoreId, name) {
-  if (!confirm(`Move ${name} to the Recycle Bin?`)) return;
+// ── Disposition (Delete / Sold / Deceased) ────────────────────────────────────
+function openDisposeModal(firestoreId, name) {
+  document.getElementById('disposeAnimalId').value = firestoreId;
+  document.getElementById('disposeAnimalName').textContent = name;
+  document.getElementById('disposeCause').classList.add('hidden');
+  document.getElementById('disposeType').value = '';
+  document.getElementById('disposeDeathCause').value = 'disease';
+  document.getElementById('disposeDate').value = today();
+  document.getElementById('disposeNotes').value = '';
+  document.getElementById('disposeModal').classList.remove('hidden');
+}
+function onDisposeTypeChange() {
+  const t = document.getElementById('disposeType').value;
+  document.getElementById('disposeCause').classList.toggle('hidden', t !== 'deceased');
+}
+async function confirmDispose() {
+  const firestoreId = document.getElementById('disposeAnimalId').value;
+  const type = document.getElementById('disposeType').value;
+  const name = document.getElementById('disposeAnimalName').textContent;
+  if (!type) { alert('Please select what happened to this animal.'); return; }
+  const a = animals.find(x=>x.firestoreId===firestoreId); if (!a) return;
+  const {firestoreId:_,...data} = a;
+  const disposeDate = document.getElementById('disposeDate').value;
+  const disposeNotes = document.getElementById('disposeNotes').value.trim();
   try {
-    const a=animals.find(x=>x.firestoreId===firestoreId); if (!a) return;
-    const{firestoreId:_,...data}=a;
-    await setDoc(doc(db,'deleted_animals',firestoreId),{...data,originalId:firestoreId,deletedAt:serverTimestamp()});
-    await deleteDoc(doc(db,'animals',firestoreId));
-    showBanner(`🗑️ ${name} moved to Recycle Bin`,'info');
-  } catch(err){showBanner('❌ Delete failed','error');}
+    if (type === 'delete') {
+      await setDoc(doc(db,'deleted_animals',firestoreId),{...data,originalId:firestoreId,deletedAt:serverTimestamp()});
+      await deleteDoc(doc(db,'animals',firestoreId));
+      showBanner(`🗑️ ${name} moved to Recycle Bin`,'info');
+    } else if (type === 'sold') {
+      await setDoc(doc(db,'sold_animals',firestoreId),{...data,soldDate:disposeDate,soldNotes:disposeNotes,soldAt:serverTimestamp()});
+      await deleteDoc(doc(db,'animals',firestoreId));
+      showBanner(`💰 ${name} marked as Sold`,'success');
+    } else if (type === 'deceased') {
+      const cause = document.getElementById('disposeDeathCause').value;
+      await setDoc(doc(db,'deceased_animals',firestoreId),{...data,deceasedDate:disposeDate,deathCause:cause,deceasedNotes:disposeNotes,deceasedAt:serverTimestamp()});
+      await deleteDoc(doc(db,'animals',firestoreId));
+      showBanner(`🪦 ${name} recorded as Deceased`,'info');
+    }
+    closeModal('disposeModal');
+  } catch(err){showBanner('❌ Save failed','error');console.error(err);}
+}
+
+// ── Graduate Kid ──────────────────────────────────────────────────────────────
+function openGraduateModal(firestoreId) {
+  const a = animals.find(x=>x.firestoreId===firestoreId); if (!a) return;
+  document.getElementById('graduateAnimalId').value = firestoreId;
+  document.getElementById('graduateAnimalName').textContent = a.name;
+  document.getElementById('graduateRole').value = a.sex==='F' ? 'doe' : 'buck';
+  document.getElementById('graduateWether').checked = a.wether||false;
+  document.getElementById('graduateWetherRow').style.display = a.sex==='M' ? '' : 'none';
+  document.getElementById('graduateModal').classList.remove('hidden');
+}
+function onGraduateRoleChange() {
+  const role = document.getElementById('graduateRole').value;
+  document.getElementById('graduateWetherRow').style.display = role==='buck' ? '' : 'none';
+}
+async function confirmGraduate() {
+  const firestoreId = document.getElementById('graduateAnimalId').value;
+  const role = document.getElementById('graduateRole').value;
+  const wether = role==='buck' && document.getElementById('graduateWether').checked;
+  try {
+    await setDoc(doc(db,'animals',firestoreId),{status:role==='doe'?'open':'open',sex:role==='doe'?'F':'M',wether,updatedAt:serverTimestamp()},{merge:true});
+    showBanner(`🎓 Graduated to ${wether?'Wether':role==='doe'?'Doe':'Buck'}!`,'success');
+    closeModal('graduateModal');
+  } catch(err){showBanner('❌ Save failed','error');}
 }
 
 // ── Kids ──────────────────────────────────────────────────────────────────────
@@ -427,27 +490,67 @@ async function deleteVetEntry(firestoreId,sortedIdx) {
   await setDoc(doc(db,'animals',firestoreId),{vet,updatedAt:serverTimestamp()},{merge:true});
 }
 
-// ── Recycle Bin ───────────────────────────────────────────────────────────────
-async function openRecycleBin() {
-  const snap=await getDocs(DELETED);
-  const deleted=snap.docs.map(d=>({id:d.id,...d.data()}));
-  const list=document.getElementById('recycleBinList');
-  if (!deleted.length){
-    list.innerHTML='<div class="log-empty" style="display:block;padding:20px;text-align:center;color:var(--oak)">Recycle Bin is empty.</div>';
-  } else {
-    deleted.sort((a,b)=>(b.deletedAt?.seconds||0)-(a.deletedAt?.seconds||0));
-    list.innerHTML=deleted.map(a=>`
+// ── Records Viewer (Bin / Sold / Graveyard) ───────────────────────────────────
+async function openRecycleBin() { openRecords('bin'); }
+
+async function openRecords(tab='bin') {
+  document.getElementById('recycleBinModal').classList.remove('hidden');
+  document.querySelectorAll('.records-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('recordsTab_'+tab).classList.add('active');
+  const list = document.getElementById('recycleBinList');
+  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--oak)">Loading…</div>';
+
+  if (tab==='bin') {
+    const snap = await getDocs(DELETED);
+    const items = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.deletedAt?.seconds||0)-(a.deletedAt?.seconds||0));
+    if (!items.length) { list.innerHTML='<div class="records-empty">Recycle Bin is empty.</div>'; return; }
+    list.innerHTML = items.map(a=>`
       <div class="recycle-item">
         <div class="recycle-info">
           <div class="recycle-name">${a.name}</div>
-          <div class="recycle-meta">${a.sex==='F'?'♀ Doe':'♂ Buck'} · ${a.status} · Deleted ${a.deletedAt?new Date(a.deletedAt.seconds*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'}</div>
+          <div class="recycle-meta">${a.sex==='F'?'♀ Doe':'♂ Buck'} · ${a.status||'—'} · Deleted ${a.deletedAt?new Date(a.deletedAt.seconds*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'}</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="restoreAnimal('${a.id}','${a.name}')">↩ Restore</button>
-        <button class="btn btn-outline btn-sm btn-danger" onclick="permanentDelete('${a.id}','${a.name}')">✕ Forever</button>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-primary btn-sm" onclick="restoreAnimal('${a.id}','${a.name}')">↩ Restore</button>
+          <button class="btn btn-outline btn-sm btn-danger" onclick="permanentDelete('${a.id}','${a.name}','deleted_animals')">✕</button>
+        </div>
+      </div>`).join('');
+
+  } else if (tab==='sold') {
+    const snap = await getDocs(SOLD);
+    const items = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.soldAt?.seconds||0)-(a.soldAt?.seconds||0));
+    if (!items.length) { list.innerHTML='<div class="records-empty">No sold animals on record.</div>'; return; }
+    list.innerHTML = items.map(a=>`
+      <div class="recycle-item">
+        <div class="recycle-info">
+          <div class="recycle-name">💰 ${a.name}</div>
+          <div class="recycle-meta">${a.sex==='F'?'♀ Doe':'♂ Buck'} · Sold ${a.soldDate?formatDate(a.soldDate):'—'}${a.soldNotes?' · '+a.soldNotes:''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-primary btn-sm" onclick="restoreFromCollection('${a.id}','${a.name}','sold_animals')">↩ Restore</button>
+          <button class="btn btn-outline btn-sm btn-danger" onclick="permanentDelete('${a.id}','${a.name}','sold_animals')">✕</button>
+        </div>
+      </div>`).join('');
+
+  } else if (tab==='graveyard') {
+    const snap = await getDocs(DECEASED);
+    const items = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.deceasedAt?.seconds||0)-(a.deceasedAt?.seconds||0));
+    if (!items.length) { list.innerHTML='<div class="records-empty">🙏 Graveyard is empty.</div>'; return; }
+    const causeIcon = {disease:'🦠',parasites:'🪱',predator:'🐺','old age':'👴'};
+    list.innerHTML = items.map(a=>`
+      <div class="recycle-item">
+        <div class="recycle-info">
+          <div class="recycle-name">🪦 ${a.name}</div>
+          <div class="recycle-meta">${a.sex==='F'?'♀ Doe':'♂ Buck'} · ${causeIcon[a.deathCause]||'❓'} ${a.deathCause||'Unknown'} · ${a.deceasedDate?formatDate(a.deceasedDate):'—'}${a.deceasedNotes?' · '+a.deceasedNotes:''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-primary btn-sm" onclick="restoreFromCollection('${a.id}','${a.name}','deceased_animals')">↩ Restore</button>
+          <button class="btn btn-outline btn-sm btn-danger" onclick="permanentDelete('${a.id}','${a.name}','deceased_animals')">✕</button>
+        </div>
       </div>`).join('');
   }
-  document.getElementById('recycleBinModal').classList.remove('hidden');
 }
+
 async function restoreAnimal(deletedId, name) {
   try {
     const snap=await getDocs(DELETED);
@@ -457,13 +560,30 @@ async function restoreAnimal(deletedId, name) {
     await setDoc(doc(db,'animals',deletedId),data);
     await deleteDoc(doc(db,'deleted_animals',deletedId));
     showBanner(`✅ ${name} restored!`,'success');
-    openRecycleBin();
+    openRecords('bin');
   } catch(err){showBanner('❌ Restore failed','error');console.error(err);}
 }
-async function permanentDelete(deletedId, name) {
-  if (!confirm(`Permanently delete ${name}? This cannot be undone.`)) return;
-  try{await deleteDoc(doc(db,'deleted_animals',deletedId));showBanner(`🗑️ ${name} permanently deleted`,'info');openRecycleBin();}
-  catch(err){showBanner('❌ Delete failed','error');}
+async function restoreFromCollection(id, name, collName) {
+  try {
+    const snap = await getDocs(collection(db, collName));
+    const d = snap.docs.find(x=>x.id===id); if (!d) return;
+    const {soldAt,soldDate,soldNotes,deceasedAt,deceasedDate,deathCause,deceasedNotes,originalId,...data} = d.data();
+    data.updatedAt = serverTimestamp();
+    await setDoc(doc(db,'animals',id),data);
+    await deleteDoc(doc(db,collName,id));
+    showBanner(`✅ ${name} restored to active herd!`,'success');
+    const tab = collName==='sold_animals'?'sold':'graveyard';
+    openRecords(tab);
+  } catch(err){showBanner('❌ Restore failed','error');console.error(err);}
+}
+async function permanentDelete(id, name, collName='deleted_animals') {
+  if (!confirm(`Permanently remove ${name}? This cannot be undone.`)) return;
+  try {
+    await deleteDoc(doc(db,collName,id));
+    showBanner(`✕ ${name} permanently removed`,'info');
+    const tab = collName==='sold_animals'?'sold':collName==='deceased_animals'?'graveyard':'bin';
+    openRecords(tab);
+  } catch(err){showBanner('❌ Delete failed','error');}
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -492,8 +612,16 @@ window.openVetModal     = openVetModal;
 window.saveVetEntry     = saveVetEntry;
 window.deleteVetEntry   = deleteVetEntry;
 window.openRecycleBin   = openRecycleBin;
+window.openRecords      = openRecords;
 window.restoreAnimal    = restoreAnimal;
+window.restoreFromCollection = restoreFromCollection;
 window.permanentDelete  = permanentDelete;
+window.openDisposeModal = openDisposeModal;
+window.onDisposeTypeChange = onDisposeTypeChange;
+window.confirmDispose   = confirmDispose;
+window.openGraduateModal = openGraduateModal;
+window.onGraduateRoleChange = onGraduateRoleChange;
+window.confirmGraduate  = confirmGraduate;
 window.toggleAuth       = toggleAuth;
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
