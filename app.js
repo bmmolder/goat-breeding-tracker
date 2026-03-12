@@ -258,22 +258,40 @@ function handleCardPhoto(event, firestoreId) {
   });
 }
 
+// ── Status change handler ─────────────────────────────────────────────────────
+function onStatusChange() {
+  const s = document.getElementById('goatStatus').value;
+  document.getElementById('soldFields').classList.toggle('hidden', s!=='sold');
+  document.getElementById('deceasedFields').classList.toggle('hidden', s!=='deceased');
+}
+
 // ── Add / Edit ────────────────────────────────────────────────────────────────
 function openAddAnimal() {
   document.getElementById('goatModalTitle').textContent='Add Animal';
   document.getElementById('editGoatId').value='';
-  ['goatName','goatTag','goatBreed','goatAge','goatSire','goatNotes','goatBreedDate','goatDueDate']
+  document.getElementById('editGoatCollection').value='animals';
+  ['goatName','goatTag','goatBreed','goatAge','goatSire','goatNotes','goatBreedDate','goatDueDate',
+   'goatSoldDate','goatSoldNotes','goatDeceasedDate','goatDeceasedNotes']
     .forEach(id=>document.getElementById(id).value='');
   document.getElementById('goatDOB').value='';
   document.getElementById('goatSex').value='F';
   document.getElementById('goatStatus').value='open';
+  document.getElementById('soldFields').classList.add('hidden');
+  document.getElementById('deceasedFields').classList.add('hidden');
   tempKids=[]; setModalPhoto(null); renderKidsList();
   document.getElementById('goatModal').classList.remove('hidden');
 }
-function editAnimal(firestoreId) {
-  const a=animals.find(x=>x.firestoreId===firestoreId); if (!a) return;
+function editAnimal(firestoreId, fromCollection='animals') {
+  let a, fid;
+  if (typeof firestoreId === 'object') {
+    a=firestoreId; fid=a.firestoreId||a.id;
+  } else {
+    a=animals.find(x=>x.firestoreId===firestoreId); fid=firestoreId;
+  }
+  if (!a) return;
   document.getElementById('goatModalTitle').textContent='Edit — '+a.name;
-  document.getElementById('editGoatId').value=a.firestoreId;
+  document.getElementById('editGoatId').value=fid;
+  document.getElementById('editGoatCollection').value=fromCollection;
   document.getElementById('goatName').value=a.name||'';
   document.getElementById('goatTag').value=a.tag||'';
   document.getElementById('goatBreed').value=a.breed||'';
@@ -285,6 +303,13 @@ function editAnimal(firestoreId) {
   document.getElementById('goatBreedDate').value=a.breedDate||'';
   document.getElementById('goatDueDate').value=a.dueDate||'';
   document.getElementById('goatNotes').value=a.notes||'';
+  document.getElementById('goatSoldDate').value=a.soldDate||'';
+  document.getElementById('goatSoldNotes').value=a.soldNotes||'';
+  document.getElementById('goatDeceasedDate').value=a.deceasedDate||'';
+  document.getElementById('goatDeathCause').value=a.deathCause||'unknown';
+  document.getElementById('goatDeceasedNotes').value=a.deceasedNotes||'';
+  document.getElementById('soldFields').classList.toggle('hidden', a.status!=='sold');
+  document.getElementById('deceasedFields').classList.toggle('hidden', a.status!=='deceased');
   tempKids=JSON.parse(JSON.stringify(a.kids||[]));
   setModalPhoto(a.photo||null); renderKidsList();
   document.getElementById('goatModal').classList.remove('hidden');
@@ -295,19 +320,40 @@ async function saveGoat() {
   const btn=document.getElementById('saveGoatBtn'); btn.disabled=true; btn.textContent='Saving…';
   try {
     const editId=document.getElementById('editGoatId').value;
+    const fromCollection=document.getElementById('editGoatCollection').value||'animals';
     const firestoreId=editId||genId();
     const existing=editId?animals.find(x=>x.firestoreId===editId):null;
     const photo=tempPhotoNew?(tempPhotoB64||null):(existing?.photo||null);
-    const data={name,tag:document.getElementById('goatTag').value.trim(),
+    const status=document.getElementById('goatStatus').value;
+    const baseData={name,tag:document.getElementById('goatTag').value.trim(),
       sex:document.getElementById('goatSex').value,breed:document.getElementById('goatBreed').value.trim(),
       age:document.getElementById('goatAge').value.trim(),dob:document.getElementById('goatDOB').value,
-      status:document.getElementById('goatStatus').value,sire:document.getElementById('goatSire').value.trim(),
+      status,sire:document.getElementById('goatSire').value.trim(),
       breedDate:document.getElementById('goatBreedDate').value,dueDate:document.getElementById('goatDueDate').value,
       notes:document.getElementById('goatNotes').value.trim(),kids:tempKids,photo,
       weights:existing?.weights||[],vet:existing?.vet||[],updatedAt:serverTimestamp()};
-    if (!editId) data.createdAt=serverTimestamp();
-    await setDoc(doc(db,'animals',firestoreId),data,{merge:!!editId});
-    showBanner(`✅ ${name} saved!`,'success'); closeModal('goatModal');
+    if (!editId) baseData.createdAt=serverTimestamp();
+
+    if (status==='sold') {
+      const soldData={...baseData,soldDate:document.getElementById('goatSoldDate').value,
+        soldNotes:document.getElementById('goatSoldNotes').value.trim(),soldAt:serverTimestamp()};
+      await setDoc(doc(db,'sold_animals',firestoreId),soldData);
+      if (fromCollection!=='sold_animals') await deleteDoc(doc(db,fromCollection,firestoreId));
+      showBanner(`💰 ${name} moved to Sold`,'success');
+    } else if (status==='deceased') {
+      const decData={...baseData,deceasedDate:document.getElementById('goatDeceasedDate').value,
+        deathCause:document.getElementById('goatDeathCause').value,
+        deceasedNotes:document.getElementById('goatDeceasedNotes').value.trim(),deceasedAt:serverTimestamp()};
+      await setDoc(doc(db,'deceased_animals',firestoreId),decData);
+      if (fromCollection!=='deceased_animals') await deleteDoc(doc(db,fromCollection,firestoreId));
+      showBanner(`🪦 ${name} moved to Graveyard`,'success');
+    } else {
+      await setDoc(doc(db,'animals',firestoreId),baseData,{merge:editId&&fromCollection==='animals'});
+      if (fromCollection==='sold_animals') await deleteDoc(doc(db,'sold_animals',firestoreId));
+      else if (fromCollection==='deceased_animals') await deleteDoc(doc(db,'deceased_animals',firestoreId));
+      showBanner(`✅ ${name} saved!`,'success');
+    }
+    closeModal('goatModal');
   } catch(err){showBanner('❌ Save failed','error');console.error(err);}
   finally{btn.disabled=false;btn.textContent='Save';}
 }
@@ -530,6 +576,7 @@ async function openRecords(tab='bin') {
           <div class="recycle-meta">${a.sex==='F'?'♀ Doe':'♂ Buck'} · Sold ${a.soldDate?formatDate(a.soldDate):'—'}${a.soldNotes?' · '+a.soldNotes:''}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-outline btn-sm edit-only" onclick='editAnimal(${JSON.stringify({...a,firestoreId:a.id})},"sold_animals")'>✏️</button>
           <button class="btn btn-primary btn-sm" onclick="restoreFromCollection('${a.id}','${a.name}','sold_animals')">↩ Restore</button>
           <button class="btn btn-outline btn-sm btn-danger" onclick="permanentDelete('${a.id}','${a.name}','sold_animals')">✕</button>
         </div>
@@ -547,6 +594,7 @@ async function openRecords(tab='bin') {
           <div class="recycle-meta">${a.sex==='F'?'♀ Doe':'♂ Buck'} · ${causeIcon[a.deathCause]||'❓'} ${a.deathCause||'Unknown'} · ${a.deceasedDate?formatDate(a.deceasedDate):'—'}${a.deceasedNotes?' · '+a.deceasedNotes:''}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-outline btn-sm edit-only" onclick='editAnimal(${JSON.stringify({...a,firestoreId:a.id})},"deceased_animals")'>✏️</button>
           <button class="btn btn-primary btn-sm" onclick="restoreFromCollection('${a.id}','${a.name}','deceased_animals')">↩ Restore</button>
           <button class="btn btn-outline btn-sm btn-danger" onclick="permanentDelete('${a.id}','${a.name}','deceased_animals')">✕</button>
         </div>
@@ -594,6 +642,7 @@ function closeModal(id){document.getElementById(id).classList.add('hidden');}
 
 // Expose to HTML
 window.filterAnimals    = filterAnimals;
+window.onStatusChange   = onStatusChange;
 window.openAddAnimal    = openAddAnimal;
 window.editAnimal       = editAnimal;
 window.saveGoat         = saveGoat;
