@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>🐐 Herd Registry</title>
+<title>🐐 Red Oak Ranch — Herd Registry</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -20,20 +20,23 @@
     </div>
   </div>
   <div class="header-meta">
-    <div id="statTotal">0</div>
+    <div id="statTotal">—</div>
     <div class="header-meta-label">animals</div>
   </div>
 </header>
 
 <div class="stats-bar">
-  <div class="stat"><div class="stat-num" id="statDoes">0</div><div>Does</div></div>
-  <div class="stat"><div class="stat-num" id="statBucks">0</div><div>Bucks</div></div>
-  <div class="stat"><div class="stat-num" id="statKids">0</div><div>Kids</div></div>
-  <div class="stat"><div class="stat-num" id="statPregnant">0</div><div>Pregnant</div></div>
-  <div class="stat"><div class="stat-num" id="statNursing">0</div><div>Nursing</div></div>
+  <div class="stat"><div class="stat-num" id="statDoes">—</div><div>Does</div></div>
+  <div class="stat"><div class="stat-num" id="statBucks">—</div><div>Bucks</div></div>
+  <div class="stat"><div class="stat-num" id="statKids">—</div><div>Kids</div></div>
+  <div class="stat"><div class="stat-num" id="statPregnant">—</div><div>Pregnant</div></div>
+  <div class="stat"><div class="stat-num" id="statNursing">—</div><div>Nursing</div></div>
 </div>
 
 <div class="main">
+
+  <!-- Sync status banner -->
+  <div id="syncBanner" class="sync-banner hidden"></div>
 
   <!-- Due soon alert -->
   <div id="alertCard" class="alert-card">
@@ -47,7 +50,7 @@
     <button class="btn btn-secondary" onclick="openAddBreeding()">♦ Breeding</button>
   </div>
 
-  <!-- Filter tabs — scrollable on mobile -->
+  <!-- Filter tabs -->
   <div class="filter-scroll">
     <button class="tab active" onclick="filterAnimals('all', this)">All</button>
     <button class="tab" onclick="filterAnimals('doe', this)">Does</button>
@@ -58,12 +61,12 @@
     <button class="tab" onclick="filterAnimals('waiting', this)">Waiting</button>
   </div>
 
-  <div class="goat-grid" id="goatGrid"></div>
+  <div class="goat-grid" id="goatGrid">
+    <div class="empty-state"><div class="icon">🔄</div><p>Connecting to Red Oak Ranch…</p></div>
+  </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     ADD / EDIT ANIMAL MODAL
-════════════════════════════════════════════════════════════ -->
+<!-- ═══ ADD / EDIT ANIMAL MODAL ═══ -->
 <div class="modal-overlay hidden" id="goatModal">
   <div class="modal">
     <div class="modal-header">
@@ -73,7 +76,6 @@
     <div class="modal-body">
       <input type="hidden" id="editGoatId">
 
-      <!-- Photo -->
       <div class="form-group">
         <label>Photo</label>
         <div class="modal-photo-area" id="modalPhotoArea" onclick="document.getElementById('modalPhotoInput').click()">
@@ -82,6 +84,10 @@
           <button class="photo-remove-btn" id="modalPhotoRemove" style="display:none" onclick="removeModalPhoto(event)">×</button>
         </div>
         <input type="file" id="modalPhotoInput" class="photo-upload-input" accept="image/*" capture="environment" onchange="handleModalPhoto(event)">
+        <div id="photoUploadProgress" class="upload-progress hidden">
+          <div class="upload-progress-bar" id="photoProgressBar"></div>
+          <span id="photoProgressText">Uploading…</span>
+        </div>
       </div>
 
       <div class="form-row">
@@ -147,8 +153,6 @@
           <input type="date" id="goatDueDate">
         </div>
       </div>
-
-      <!-- Kids -->
       <div class="form-group">
         <label>Kids</label>
         <div class="kids-adder">
@@ -156,7 +160,6 @@
           <button class="btn btn-outline btn-sm" onclick="addKidRow()">＋ Add Kid</button>
         </div>
       </div>
-
       <div class="form-group">
         <label>Notes</label>
         <textarea id="goatNotes" rows="2" placeholder="Health notes, temperament…"></textarea>
@@ -164,14 +167,12 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('goatModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveGoat()">Save</button>
+      <button class="btn btn-primary" id="saveGoatBtn" onclick="saveGoat()">Save</button>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     RECORD BREEDING MODAL
-════════════════════════════════════════════════════════════ -->
+<!-- ═══ BREEDING MODAL ═══ -->
 <div class="modal-overlay hidden" id="breedingModal">
   <div class="modal">
     <div class="modal-header">
@@ -205,9 +206,7 @@
         <label>Notes</label>
         <textarea id="breedNotes" rows="2" placeholder="Observations…"></textarea>
       </div>
-      <div class="est-due-box">
-        Est. due date (150 days): <strong id="estDueDisplay">—</strong>
-      </div>
+      <div class="est-due-box">Est. due date (150 days): <strong id="estDueDisplay">—</strong></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('breedingModal')">Cancel</button>
@@ -216,55 +215,32 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     WEIGHT LOG MODAL
-════════════════════════════════════════════════════════════ -->
+<!-- ═══ WEIGHT LOG MODAL ═══ -->
 <div class="modal-overlay hidden" id="weightModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">⚖️ Weight Log — <span id="weightModalName"></span></div>
+      <div class="modal-title">⚖️ Weight — <span id="weightModalName"></span></div>
       <button class="modal-close" onclick="closeModal('weightModal')">×</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="weightAnimalId">
-
-      <!-- Add new entry -->
       <div class="log-add-row">
-        <div class="form-group" style="flex:1">
-          <label>Date</label>
-          <input type="date" id="weightDate">
-        </div>
-        <div class="form-group" style="flex:1">
-          <label>Weight (lbs)</label>
-          <input type="number" id="weightValue" placeholder="0.0" step="0.1" min="0">
-        </div>
-        <div class="form-group" style="flex:2">
-          <label>Notes</label>
-          <input type="text" id="weightNote" placeholder="Optional">
-        </div>
+        <div class="form-group" style="flex:1"><label>Date</label><input type="date" id="weightDate"></div>
+        <div class="form-group" style="flex:1"><label>Weight (lbs)</label><input type="number" id="weightValue" placeholder="0.0" step="0.1" min="0"></div>
+        <div class="form-group" style="flex:2"><label>Notes</label><input type="text" id="weightNote" placeholder="Optional"></div>
         <button class="btn btn-primary btn-sm log-add-btn" onclick="saveWeightEntry()">Add</button>
       </div>
-
-      <!-- Weight history -->
       <div class="log-table-wrap">
-        <table class="log-table" id="weightTable">
-          <thead>
-            <tr><th>Date</th><th>Weight</th><th>Notes</th><th></th></tr>
-          </thead>
-          <tbody id="weightTableBody"></tbody>
-        </table>
+        <table class="log-table"><thead><tr><th>Date</th><th>Weight</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="weightTableBody"></tbody></table>
         <div class="log-empty hidden" id="weightEmpty">No weight entries yet.</div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('weightModal')">Close</button>
-    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('weightModal')">Close</button></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     VET / TREATMENT LOG MODAL
-════════════════════════════════════════════════════════════ -->
+<!-- ═══ VET LOG MODAL ═══ -->
 <div class="modal-overlay hidden" id="vetModal">
   <div class="modal">
     <div class="modal-header">
@@ -273,49 +249,27 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="vetAnimalId">
-
-      <!-- Add new entry -->
       <div class="log-add-row">
-        <div class="form-group" style="flex:1">
-          <label>Date</label>
-          <input type="date" id="vetDate">
-        </div>
-        <div class="form-group" style="flex:1">
-          <label>Type</label>
+        <div class="form-group" style="flex:1"><label>Date</label><input type="date" id="vetDate"></div>
+        <div class="form-group" style="flex:1"><label>Type</label>
           <select id="vetType">
-            <option value="Vaccine">Vaccine</option>
-            <option value="Medication">Medication</option>
-            <option value="Dewormer">Dewormer</option>
-            <option value="Hoof Trim">Hoof Trim</option>
-            <option value="Vet Visit">Vet Visit</option>
-            <option value="Injury">Injury</option>
-            <option value="Other">Other</option>
+            <option>Vaccine</option><option>Medication</option><option>Dewormer</option>
+            <option>Hoof Trim</option><option>Vet Visit</option><option>Injury</option><option>Other</option>
           </select>
         </div>
-        <div class="form-group" style="flex:2">
-          <label>Treatment / Notes</label>
-          <input type="text" id="vetTreatment" placeholder="e.g. CDT vaccine, 2ml">
-        </div>
+        <div class="form-group" style="flex:2"><label>Treatment / Notes</label><input type="text" id="vetTreatment" placeholder="e.g. CDT vaccine, 2ml"></div>
         <button class="btn btn-primary btn-sm log-add-btn" onclick="saveVetEntry()">Add</button>
       </div>
-
-      <!-- Vet history -->
       <div class="log-table-wrap">
-        <table class="log-table" id="vetTable">
-          <thead>
-            <tr><th>Date</th><th>Type</th><th>Treatment</th><th></th></tr>
-          </thead>
-          <tbody id="vetTableBody"></tbody>
-        </table>
+        <table class="log-table"><thead><tr><th>Date</th><th>Type</th><th>Treatment</th><th></th></tr></thead>
+        <tbody id="vetTableBody"></tbody></table>
         <div class="log-empty hidden" id="vetEmpty">No vet records yet.</div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('vetModal')">Close</button>
-    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('vetModal')">Close</button></div>
   </div>
 </div>
 
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
