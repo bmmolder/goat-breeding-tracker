@@ -315,6 +315,7 @@ function editAnimal(firestoreId, fromCollection='animals') {
   document.getElementById('goatModal').classList.remove('hidden');
 }
 async function saveGoat() {
+  collectKidsFromDOM(); // read names/sex/weight from DOM before anything else
   const name=document.getElementById('goatName').value.trim();
   if (!name){alert('Please enter a name.');return;}
   const btn=document.getElementById('saveGoatBtn'); btn.disabled=true; btn.textContent='Saving…';
@@ -334,6 +335,26 @@ async function saveGoat() {
       weights:existing?.weights||[],vet:existing?.vet||[],updatedAt:serverTimestamp()};
     if (!editId) baseData.createdAt=serverTimestamp();
 
+    // Auto-create individual cards for any NEW kids (ones not already in the herd)
+    const existingKidNames = new Set(animals.filter(a=>a.status==='kid').map(a=>a.name.toLowerCase()));
+    const newKids = tempKids.filter(k => k.name && !existingKidNames.has(k.name.toLowerCase()));
+    for (const k of newKids) {
+      const kidId = genId();
+      await setDoc(doc(db,'animals',kidId), {
+        name: k.name,
+        sex: k.sex||'F',
+        status: 'kid',
+        dob: k.dob||today(),
+        dam: name,
+        sire: document.getElementById('goatSire').value.trim()||'Unknown',
+        breed: document.getElementById('goatBreed').value.trim()||'',
+        weights: k.weight?[{date:today(),value:parseFloat(k.weight)||0,note:'Birth weight'}]:[],
+        vet:[],kids:[],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+
     if (status==='sold') {
       const soldData={...baseData,soldDate:document.getElementById('goatSoldDate').value,
         soldNotes:document.getElementById('goatSoldNotes').value.trim(),soldAt:serverTimestamp()};
@@ -343,7 +364,7 @@ async function saveGoat() {
     } else if (status==='deceased') {
       const decData={...baseData,deceasedDate:document.getElementById('goatDeceasedDate').value,
         deathCause:document.getElementById('goatDeathCause').value,
-        deceasedNotes:document.getElementById('goatDeceasedNotes').value.trim(),deceasedAt:serverTimestamp()};
+        deceasedNotes:document.getElementById('goatDeceasedNotes').value.trim(),deceasedAt:serverTimestamp()};\
       await setDoc(doc(db,'deceased_animals',firestoreId),decData);
       if (fromCollection!=='deceased_animals') await deleteDoc(doc(db,fromCollection,firestoreId));
       showBanner(`🪦 ${name} moved to Graveyard`,'success');
@@ -351,7 +372,8 @@ async function saveGoat() {
       await setDoc(doc(db,'animals',firestoreId),baseData,{merge:editId&&fromCollection==='animals'});
       if (fromCollection==='sold_animals') await deleteDoc(doc(db,'sold_animals',firestoreId));
       else if (fromCollection==='deceased_animals') await deleteDoc(doc(db,'deceased_animals',firestoreId));
-      showBanner(`✅ ${name} saved!`,'success');
+      const kidMsg = newKids.length ? ` + ${newKids.length} kid card${newKids.length>1?'s':''} created` : '';
+      showBanner(`✅ ${name} saved!${kidMsg}`,'success');
     }
     closeModal('goatModal');
   } catch(err){showBanner('❌ Save failed','error');console.error(err);}
@@ -428,18 +450,29 @@ async function confirmGraduate() {
 // ── Kids ──────────────────────────────────────────────────────────────────────
 function renderKidsList() {
   document.getElementById('kidsList').innerHTML=tempKids.map((k,i)=>`
-    <div class="kid-row">
-      <input type="text" value="${k.name||''}" placeholder="Name" oninput="tempKids[${i}].name=this.value">
-      <select onchange="tempKids[${i}].sex=this.value">
+    <div class="kid-row" data-idx="${i}">
+      <input type="text" class="kid-name-input" value="${k.name||''}" placeholder="Name">
+      <select class="kid-sex-input">
         <option value="F" ${k.sex==='F'?'selected':''}>♀ F</option>
         <option value="M" ${k.sex==='M'?'selected':''}>♂ M</option>
       </select>
-      <input type="text" value="${k.weight||''}" placeholder="lbs" oninput="tempKids[${i}].weight=this.value">
+      <input type="text" class="kid-weight-input" value="${k.weight||''}" placeholder="lbs">
       <button class="btn-icon" onclick="removeKid(${i})">×</button>
     </div>`).join('');
 }
+function collectKidsFromDOM() {
+  // Read current values straight from the DOM before saving
+  const rows = document.querySelectorAll('#kidsList .kid-row');
+  rows.forEach((row,i) => {
+    if (tempKids[i]) {
+      tempKids[i].name   = row.querySelector('.kid-name-input').value.trim();
+      tempKids[i].sex    = row.querySelector('.kid-sex-input').value;
+      tempKids[i].weight = row.querySelector('.kid-weight-input').value.trim();
+    }
+  });
+}
 function addKidRow(){tempKids.push({name:'',sex:'F',dob:today(),weight:''});renderKidsList();}
-function removeKid(i){tempKids.splice(i,1);renderKidsList();}
+function removeKid(i){collectKidsFromDOM();tempKids.splice(i,1);renderKidsList();}
 
 // ── Breeding ──────────────────────────────────────────────────────────────────
 function openAddBreeding() {
