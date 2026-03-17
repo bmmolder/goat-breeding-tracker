@@ -364,7 +364,7 @@ async function saveGoat() {
     } else if (status==='deceased') {
       const decData={...baseData,deceasedDate:document.getElementById('goatDeceasedDate').value,
         deathCause:document.getElementById('goatDeathCause').value,
-        deceasedNotes:document.getElementById('goatDeceasedNotes').value.trim(),deceasedAt:serverTimestamp()};\
+        deceasedNotes:document.getElementById('goatDeceasedNotes').value.trim(),deceasedAt:serverTimestamp()};
       await setDoc(doc(db,'deceased_animals',firestoreId),decData);
       if (fromCollection!=='deceased_animals') await deleteDoc(doc(db,fromCollection,firestoreId));
       showBanner(`🪦 ${name} moved to Graveyard`,'success');
